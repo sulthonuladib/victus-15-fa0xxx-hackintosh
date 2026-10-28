@@ -813,15 +813,15 @@
 				<key>BundlePath</key>
 				<string>AirportMtkWlan.kext</string>
 				<key>Comment</key>
-				<string>MediaTek MT7921 Wi-Fi, native menu (SimpleMtkWlan v1.5.0, Sequoia build)</string>
+				<string>MediaTek MT7921 Wi-Fi, native menu (AirportMtkWlan v1.5.1, Tahoe build)</string>
 				<key>Enabled</key>
 				<true/>
 				<key>ExecutablePath</key>
 				<string>Contents/MacOS/AirportMtkWlan</string>
 				<key>MaxKernel</key>
-				<string>24.99.99</string>
+				<string>25.99.99</string>
 				<key>MinKernel</key>
-				<string>24.2.0</string>
+				<string>25.0.0</string>
 				<key>PlistPath</key>
 				<string>Contents/Info.plist</string>
 			</dict>

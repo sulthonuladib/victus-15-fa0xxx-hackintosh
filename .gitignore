@@ -1,8 +1,8 @@
+.references/
 .xps-reference/
 *.dmg
 *.chunklist
 *.pkg
-out/
 .downloads/
 *.zip
 .stick-serial

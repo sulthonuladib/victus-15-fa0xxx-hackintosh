@@ -15,8 +15,9 @@ set -euo pipefail
 
 # ---- what to write ---------------------------------------------------------
 REPO=${REPO:-$HOME/repo/nullmoth/1401}
-EFI=${EFI:-$HOME/1401/efi}          # output of: python3 -m p1401 build ...
-DARWIN=${DARWIN:-24}                # 24 = macOS Sequoia 15 (matches the build's macOS 24.x)
+PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+EFI=${EFI:-$PROJECT_ROOT}          # parent containing EFI/
+DARWIN=${DARWIN:-25}                # macOS Tahoe
 LABEL=${LABEL:-1401}
 VOL_ID=${VOL_ID:-1401C0DE}          # FAT volume serial, e.g. 1401-C0DE
 PART_SIZE=${PART_SIZE:-16GiB}       # the app caps at 16 GiB (Windows' FAT32 formatter limit)
@@ -188,9 +189,7 @@ fi
 
 # ---- write mode ------------------------------------------------------------
 step "1/6 the EFI build"
-[ -d "$EFI" ] || die "$EFI does not exist. Build it first:
-  sudo chown \"\$USER\":\"\$USER\" $HOME/1401
-  cd $REPO && python3 -m p1401 build $HOME/1401/scan/Report.json $HOME/1401/scan/ACPI $EFI"
+[ -d "$EFI" ] || die "$EFI does not exist. Prepare the Tahoe candidate, or set EFI to a folder containing EFI/."
 [ -f "$EFI/EFI/BOOT/BOOTx64.efi" ] || die "$EFI/EFI/BOOT/BOOTx64.efi is missing - the firmware would have nothing to boot."
 [ -f "$EFI/EFI/OC/config.plist" ] || die "$EFI/EFI/OC/config.plist is missing."
 say "   $EFI  ($(find "$EFI/EFI" -type f | wc -l) files)"

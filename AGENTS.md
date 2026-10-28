@@ -1,40 +1,29 @@
-# Rules for agents and automation in this repo
+# Agent rules
 
-## Hard safety
-
-- **Never** write to `/dev/nvme0n1` (the Linux install: omarchy_root LUKS/btrfs, `/boot` ESP,
-  `/home`). No repartitioning, no `mkfs`, no `dd` against it. Ask the human first, every time.
-- The USB test stick is `/dev/sda` (29.3 GB, serial `CHANGEME-STICK-SERIAL`). Write it only with
-  `tools/make-1401-stick.sh`, which re-checks serial, size, USB transport, mounted system paths
-  and OS partition types before erasing.
-- Back up `EFI/OC/config.plist` (or `cp -a EFI EFI.bak`) before editing; this EFI is the only
-  configuration known to produce a display.
-- Do not touch the 1401 or WhateverXe working trees under `~/repo/nullmoth/` — other people's
-  repos, and 1401's AGENTS.md forbids AI-written contributions upstream.
-
-## Working with the EFI
-
-- `boot-args` must also be listed in `NVRAM > Delete > 7C436110-…`, or OpenCore reports
-  `OCVAR: Setting NVRAM …:boot-args - ignored, exists` and silently keeps the old value.
-- Keep `disable-gpu` absent from `PciRoot(0x0)/Pci(0x2,0x0)`; keep the TGL spoof keys
-  (`device-id 499A0000`, `AAPL,ig-platform-id 0000499A`, framebuffer props). See
-  `notes/tgl-spoof-recipe.md`.
-- Do not add NVIDIA kexts to `Kernel > Add` for the installer: `NVRM` injects but
-  `NVRMFB`/`NVAccel`/`NVRMAGDC` fail with "Invalid Parameter" (OCAK vtable patching).
-- After editing, validate: `python3 -m p1401.efidoctor <stick-root> --report scan/Report.json`
-  and `python3 -m p1401 validate <efi-dir>` (from `~/repo/nullmoth/1401`).
-
-## Reading a boot
-
-- Logs land on the stick as `opencore-YYYY-MM-DD-HHMMSS.txt`, 256 KiB, NUL-padded, CRLF.
-  Strip `\x00`, normalise CR, then look for `EB|MBA:NV`/`MBA:OUT` (did boot-args apply),
-  `Prelinked injection` (kexts), `Panic log does not exist` (no crash), `EXITBS:START` (handover).
-- `EXITBS:START` is the last line of every log, success or failure — GUI success is only visible
-  on screen; kernel crashes appear as `panic-*.txt` on the stick.
-- Compare boots semantically: strip the leading `mm:sss mm:sss ` timestamps and diff.
-
-## House rules
-
-- Every configuration change goes into `HANDOFF.md` with the evidence (log name + line).
-- Never present an untested change as working; say what was measured and what was assumed.
-- Reference material (`.xps-reference/`) is read-only; its licence is "Thou Shalt Not Profit".
+- Target **Tahoe 26.7.1 / 25G241**. Read [README.md](README.md) for hardware/status and
+  [REFERENCES.md](REFERENCES.md) when working with upstream components.
+- Leave `OMARCHY_EFI` (`/boot`, `/dev/nvme0n1p1`) untouched. Never repartition, format or
+  write the whole `/dev/nvme0n1`. Ask before each internal-disk media write, including MACEFI.
+- USB writes: only `tools/make-1401-stick.sh`, with its serial, size, transport and OS-partition
+  checks intact. `/dev/sda` is historical; re-identify it and use the private `.stick-serial`.
+- `EFI/` is the single EFI source and git history is the rollback: commit instead of keeping copy trees. Deploy
+  `EFI/` to `MACEFI`; do not create `out/`-style backups or `.bak-*` copies. Preserve the private machine identity:
+  it stays only in the deployed `MACEFI/EFI/OC/config.plist`; the committed `EFI/OC/config.plist` keeps scrubbed
+  placeholders and never a real serial, MLB, ROM or UUID.
+- Preserve the HP ACPI/input setup and Intel display properties: no `disable-gpu` at
+  `PciRoot(0x0)/Pci(0x2,0x0)`; retain `device-id=499A0000`, `AAPL,ig-platform-id=0000499A`
+  and framebuffer properties. Keep `boot-args` in NVRAM Delete as well as Add; TRIM timeout is 0.
+- Keep NVIDIA injection out of the installer: prior NVRMFB/NVAccel/NVRMAGDC injection failed.
+  Review graphics drivers as a complete stack; prepare EFI and macOS-driver rollback together.
+- When source references are needed, use the repos in `REFERENCES.md`. Reuse an existing
+  checkout under `.references/` (including symlinks); if missing, clone only the needed repo
+  into `.references/<repo>/`. Keep reference sources read-only after cloning and git-ignored.
+  Never modify `~/repo/nullmoth/`; preserve upstream licences/notices.
+  Adapt the XPS graphics stack to our hardware; retain our complete HP EFI and identity.
+- Validate EFI edits with matching-version `ocvalidate` plus referenced-file/dependency checks.
+  1401's `validate` CLI is absent here; its Python API is available. Use `python3 -B` for
+  upstream imports; review efidoctor recommendations instead of blindly applying NVIDIA fixes.
+- Report measured results separately from assumptions. `EXITBS:START` only means handover;
+  GUI/Metal success needs a real boot test. Keep README status current and concise.
+- Keep docs to these three files. Use release tags/commit IDs and relevant source links;
+  avoid session handoffs, duplicated research logs and per-source checksum manifests.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """verify-xar-pkg.py - check an Apple .pkg (XAR archive) against its own table of contents.
 
-Usage: python3 tools/verify-xar-pkg.py .downloads/InstallAssistant.pkg [--quick]
+Usage: python3 tools/verify-xar-pkg.py /path/to/InstallAssistant.pkg [--quick]
 
 What it proves, offline:
   1. the TOC decompresses and matches the digest stored for it  -> nothing is corrupted up front
@@ -16,8 +16,7 @@ start of the heap.
 
 What it does NOT prove: that Apple made the file. That needs the signature chain against
 Apple's root (macOS `pkgutil --check-signature` / `installer`), which only macOS has. This
-check catches truncation and corruption, which is what a 15.66 GB download over a flaky link
-actually suffers from.
+check catches truncation and corruption in large downloads.
 """
 import hashlib
 import sys
