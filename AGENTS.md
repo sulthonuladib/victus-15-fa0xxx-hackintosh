@@ -6,10 +6,10 @@
   write the whole `/dev/nvme0n1`. Ask before each internal-disk media write, including MACEFI.
 - USB writes: only `tools/make-1401-stick.sh`, with its serial, size, transport and OS-partition
   checks intact. `/dev/sda` is historical; re-identify it and use the private `.stick-serial`.
-- `EFI/` is the single EFI source and git history is the rollback: commit instead of keeping copy trees. Deploy
-  `EFI/` to `MACEFI`; do not create `out/`-style backups or `.bak-*` copies. Preserve the private machine identity:
-  it stays only in the deployed `MACEFI/EFI/OC/config.plist`; the committed `EFI/OC/config.plist` keeps scrubbed
-  placeholders and never a real serial, MLB, ROM or UUID.
+- `EFI/` is the single EFI source and git history is the rollback: commit instead of keeping copy trees. Deploy with
+  `tools/deploy-efi.sh`; never hand-edit the ESP. Preserve the private machine identity: it lives only in the deployed
+  `MACEFI/EFI/OC/config.plist` and the git-ignored `EFI/OC/identity.plist`. The committed `EFI/OC/config.plist` keeps
+  scrubbed placeholders and never a real serial, MLB, ROM or UUID.
 - Preserve the HP ACPI/input setup and Intel display properties: no `disable-gpu` at
   `PciRoot(0x0)/Pci(0x2,0x0)`; retain `device-id=499A0000`, `AAPL,ig-platform-id=0000499A`
   and framebuffer properties. Keep `boot-args` in NVRAM Delete as well as Add; TRIM timeout is 0.
