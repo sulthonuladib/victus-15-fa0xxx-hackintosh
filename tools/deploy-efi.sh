@@ -193,7 +193,7 @@ if [ "$MODE" = check ]; then
   step "compare $TARGET/EFI with $SRC"
   [ -f "$CONF" ] || die "$CONF not found - deploy EFI/ first."
   diffs=$(diff -rq "$SRC" "$TARGET/EFI" 2>&1 || true)
-  extra=$(printf '%s\n' "$diffs" | grep -v 'config.plist.bak-' | grep -vE '^Files .*config\.plist and .*config\.plist differ$' || true)
+  extra=$(printf '%s\n' "$diffs" | grep -vE 'config\.plist\.(bak-|before-1401-)|: \._|/\._' | grep -vE '^Files .*config\.plist and .*config\.plist differ$' || true)
   if [ -n "$extra" ]; then
     printf '%s\n' "$extra" | sed 's/^/   /'
     die "the ESP differs from EFI/ by more than OC/config.plist"
