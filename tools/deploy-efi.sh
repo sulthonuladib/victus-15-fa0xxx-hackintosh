@@ -247,7 +247,11 @@ validate "$SRC/OC/config.plist"
 deps "$SRC"
 
 step "3/4 copy EFI/ to $TARGET"
-rsync -a --delete "$SRC/" "$TARGET/EFI/"
+rsync -a --delete \
+  --exclude 'config.plist.before-1401-*' \
+  --exclude 'config.plist.bak-*' \
+  --exclude '._*' \
+  "$SRC/" "$TARGET/EFI/"
 splice "$TMP/identity.plist" "$CONF"
 sync
 
