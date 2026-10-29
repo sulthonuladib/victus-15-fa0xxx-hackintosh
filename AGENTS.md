@@ -26,8 +26,10 @@
   Do not make it the default until the internal panel is proven.
 - When source references are needed, use the repos in `REFERENCES.md`. Reuse an existing checkout under `.references/`
   (including symlinks); if missing, clone only the needed repo into `.references/<repo>/`. Keep reference sources
-  read-only and git-ignored. Never modify `~/repo/nullmoth/`; preserve upstream licences/notices. Build copies belong on
-  APFS, not the repo.
+  read-only and git-ignored. `~/repo/nullmoth/` is user-maintained: when asked, fetch tags and check out the latest
+  release tag, but do not edit its source or working tree. Keep local changes in patches/stashes/branches; preserve
+  upstream licences/notices. Build copies belong on APFS, not the repo. Keep the source tag matched to the installed
+  1401/driver version before building NMIntelFB.
 - Validate EFI edits with matching-version `ocvalidate` plus referenced-file/dependency checks. Use `python3 -B` for
   upstream imports; review recommendations instead of blindly applying them.
 - Report measured results separately from assumptions. `EXITBS:START` only means handover; GUI/Metal success needs a
