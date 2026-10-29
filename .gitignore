@@ -8,3 +8,4 @@
 .stick-serial
 EFI/OC/config.plist.bak-*
 EFI/OC/identity.plist
+.pi/
