@@ -44,10 +44,14 @@ These are prior user reports on this laptop. **Tahoe boot and runtime behavior a
   writes `opencore-<date>.txt` and any `panic-*.txt` to the partition root (`Target=67`).
 - Wi-Fi: `AirportMtkWlan` 1.5.1 Tahoe build (`14c3:7961`), `MinKernel 25.0.0`/`MaxKernel 25.99.99`, `SimpleMtkWlan`
   kept disabled. Source release sha256 `07ee8815…b02f9f`, kext binary sha256 `18a3c427…667f53`.
-- Graphics: the EFI only presents the iGPU as Tiger Lake (`device-id 499A0000`, `AAPL,ig-platform-id 0000499A`, the
-  XPS reference's values) plus WhateverGreen; there is no Intel accelerator, so Tahoe runs on the software renderer.
+- Graphics: iGPU presented as Tiger Lake (`device-id 499A0000`, `AAPL,ig-platform-id 0000499A`) with
+  `NootedGreen` 1.0.0 (`MinKernel 25.0.0`, built from the XPS reference), its boot-args and `csr-active-config 0x0A13`.
+  The user-space half (Apple's TGL bundles, HookCase, patched Metal driver) is installed from macOS with
+  `zsh install.sh` (`macUtility/make-graphics-work.sh --install`); until that runs, Tahoe stays on the software renderer.
+  Our `46A6` is a 96 EU / 8 L3 part, so no `ngreen-eu`/`ngreen-l3` (those are for 80 EU chips).
 - Recovery entries are hidden by `HideAuxiliary=true`; press **Space** in OpenCore to show them.
-- Next: bring up Intel acceleration with the XPS/NootedGreen stack for `46A6`. nullmoth's NVIDIA driver v2.6.3 lists
+- Next: run the user-space install, then verify `xe-topo = 24584` and Metal in `system_profiler`. nullmoth's NVIDIA
+  driver v2.6.3 lists
   macOS 26, but Ampere validation is still pending and it cannot drive the internal eDP panel.
 
 Acceleration needs macOS-side drivers and user-space components as well as EFI changes.

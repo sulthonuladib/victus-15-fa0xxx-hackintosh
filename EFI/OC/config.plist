@@ -379,6 +379,24 @@
 				<key>Arch</key>
 				<string>Any</string>
 				<key>BundlePath</key>
+				<string>NootedGreen.kext</string>
+				<key>Comment</key>
+				<string>Tiger Lake driver patches for the 46A6 iGPU (XPS reference)</string>
+				<key>Enabled</key>
+				<true/>
+				<key>ExecutablePath</key>
+				<string>Contents/MacOS/NootedGreen</string>
+				<key>MaxKernel</key>
+				<string></string>
+				<key>MinKernel</key>
+				<string>25.0.0</string>
+				<key>PlistPath</key>
+				<string>Contents/Info.plist</string>
+			</dict>
+			<dict>
+				<key>Arch</key>
+				<string>Any</string>
+				<key>BundlePath</key>
 				<string>BrightnessKeys.kext</string>
 				<key>Comment</key>
 				<string></string>
@@ -1165,10 +1183,10 @@
 				Rg==
 				</data>
 				<key>boot-args</key>
-				<string>-v debug=0x100 keepsyms=1 amfi=0x80 -vi2c-force-polling</string>
+				<string>-v debug=0x100 keepsyms=1 amfi=0x80 amfi_get_out_of_my_way=1 IGLogLevel=3 -ngreentglwithgfx -allow3d -disablegfxfirmware ngreen-dmc=adlp -ngreenv189 -ngreenkeepefi -ngreenxefix -ngreenfixbootmode ngreenSched=4 ngreenV142=3 ngreenblmax=17777 gfxrst=1 -vi2c-force-polling</string>
 				<key>csr-active-config</key>
 				<data>
-				QwoAAA==
+				EwoAAA==
 				</data>
 				<key>prev-lang:kbd</key>
 				<data>
