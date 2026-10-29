@@ -67,7 +67,11 @@ validate() { # $1 = config path
   out=$("$OCVALIDATE" "$1" 2>&1) || rc=$?
   printf '%s\n' "$out" | grep -E 'NOTE:|Completed validating|issues|error' | sed 's/^/   /' || true
   [ "$rc" = 0 ] || die "ocvalidate rejected $1"
-  printf '%s\n' "$out" | grep -q 'No issues found' || die "ocvalidate did not report a clean run on $1"
+  # case, not `| grep -q`: grep -q exits early, the writer gets SIGPIPE, pipefail turns that into a failure
+  case "$out" in
+    *'No issues found'*) ;;   # clean run
+    *) die "ocvalidate did not report a clean run on $1" ;;
+  esac
 }
 
 # The four private fields, spliced as text so the deployed config stays byte-identical to
