@@ -26,6 +26,8 @@
   It needs the real `46A6`, `IONDRVSupport` present, no WhateverGreen, and no spoof. Alder Lake is
   probe-only until `adlp_guc_70.bin` is linked: stop at `debug.xegfx_stage=3` and send reports to
   WTLIntelGfx #3. Do not make it the default, or drop `master`'s fallback, until the panel is proven.
+  The ESP may carry the `nmintelfb` test config (it does since 2026-11-04) while `master` keeps the
+  fallback; deploy and `--check` from whichever tree you want on the ESP.
 - When source references are needed, use the repos in `REFERENCES.md`. Reuse an existing checkout under `.references/`
   (including symlinks); if missing, clone only the needed repo into `.references/<repo>/`. Keep reference sources
   read-only and git-ignored. watchthelight-labs default branches vary: `WTLNvidiaGfx` is `nvgfx-2.6.2`, not `main`.
@@ -33,7 +35,8 @@
   release tag, but do not edit its source or working tree. Keep local changes in patches/stashes/branches; preserve
   upstream licences/notices. Build copies belong on APFS, not the repo. Keep the source tag matched to the installed
   1401/driver version before building from the NullMoth tree.
-- Validate EFI edits with matching-version `ocvalidate` plus referenced-file/dependency checks. Use `python3 -B` for
+- Validate EFI edits with matching-version `ocvalidate` plus referenced-file/dependency checks (the 1.0.9
+  `.linux` build from the 1401 OpenCore zip sits in `.downloads/ocvalidate`). Use `python3 -B` for
   upstream imports; review recommendations instead of blindly applying them.
 - Report measured results separately from assumptions. `EXITBS:START` only means handover; GUI/Metal success needs a
   real boot test. Keep README status current and concise.

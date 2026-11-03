@@ -29,12 +29,12 @@ no longer the target.
   (`NVRM`, `NVAccel`, `NVRMFB`, `NVRMAGDC`) and the AuxKC, never in the EFI. The HDMI output is
   the NVIDIA path. Ampere laptop validation is still listed as pending upstream; the internal
   panel is wired to Intel, so NVIDIA cannot drive it directly.
-- **Intel internal panel:** the committed baseline still boots through the transitional Tiger Lake
-  display fallback (`device-id`/`AAPL,ig-platform-id` spoof plus WhateverGreen, no acceleration);
-  it stays until a real driver is proven. The target is **XeGfx** (`WTLIntelGfx` v0.0.47), i915 on
-  XNU with a Metal accelerator, using the real `46A6` with no spoof and no WhateverGreen. Alder
-  Lake is at the read-only probe: stage 2 passes on `46A6`; stage 4+ needs `adlp_guc_70.bin`
-  linked into the kext, which upstream has not done yet.
+- **Intel internal panel:** the deployed `MACEFI` config is now the XeGfx test shape (real `46A6`,
+  no `device-id`/`AAPL,ig-platform-id` spoof, no WhateverGreen, `IONDRVSupport` unblocked, no
+  `gfxrst=4`), deployed 2026-11-04 from the `nmintelfb` branch. `master` keeps the transitional
+  Tiger Lake fallback as the rollback. XeGfx itself is not installed yet: Alder Lake is at the
+  read-only probe (stage 2 passes on `46A6`), and stage 4+ needs `adlp_guc_70.bin` linked into the
+  kext, which upstream has not done yet.
 - **Removed:** NootedGreen, the `-ngreen*`/`-allow3d`/`gfxrst=1` boot arguments, and the XPS
   acceleration references. The previous stack panicked in `IGAccelTask::withOptions` on this
   `46A6` 96 EU machine; the panic report is kept locally under `.downloads/panic-2026-10-29/`.
@@ -56,6 +56,9 @@ no longer the target.
   pre-install config.
 - **Do not run `tools/deploy-efi.sh` from an unsynced tree.** It uses `rsync --delete`; a stale
   tree would remove AMFIPass/NullMothSafe and overwrite the 1401 config.
+- The ESP currently holds the `nmintelfb` config, so run `--check`/deploy from that branch (a
+  `git worktree` works) or from `master` when rolling the fallback back. Matching `ocvalidate`
+  (1.0.9 `.linux` from the 1401 OpenCore zip) lives in `.downloads/ocvalidate`.
 
 ## Next: XeGfx on Alder Lake
 
