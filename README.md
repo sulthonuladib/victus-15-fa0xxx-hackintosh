@@ -62,26 +62,25 @@ no longer the target.
 
 ## Next: XeGfx on Alder Lake
 
-The `nmintelfb` branch already has the EFI shape XeGfx needs. Keep `master` (NVIDIA/HDMI) as the
-rollback and test on that branch:
+The ESP already boots the `nmintelfb` config; `master` keeps the fallback as rollback. The macOS
+build sequence, prerequisites, staged sources and troubleshooting live on the utility drive:
+`scripts/xegfx/RUNBOOK.md`, driven by `xegfx-run.sh kernel | probe | metal`. Nothing needs
+cloning there: 331 MB of pinned sources and the GuC firmware are staged.
 
-- real `46A6`, no `device-id`/`AAPL,ig-platform-id` spoof, no WhateverGreen;
-- `IONDRVSupport` present (XeGfxIntelFB links against it; the NVIDIA baseline excludes it);
-- `XeGfx.kext` built from `WTLIntelGfx` v0.0.47+ and installed with its `tools/install.sh` into
-  `/Library/Extensions` and the AuxKC, then one reboot so the collection includes it;
-- `sudo kmutil load -b org.watchthelight.XeGfx`, then `sudo sysctl debug.xegfx_stage=2`. Stage 2
-  only reads registers. Do not go past stage 3 until the Alder Lake GuC is wired in;
-- report `ioreg -l -w0 -r -c XeGfxResident` and `sysctl -b debug.xegfx_log` to WTLIntelGfx #3.
+Local addition over upstream v0.0.47: `adlp_guc_70.bin` (GuC v70.49.4 from linux-firmware, whose
+i915 blobs now live under `i915/`) is embedded and copied into `Resources/` by a patch to
+`tools/link.sh` (`xegfx-patch-guc.sh`). Upstream does not do this, and without it stage 4 has no
+GuC on `46A6`. The Metal plugin and translator also need our install step; upstream's
+`tools/install.sh` does not place them in `/Library/GPUBundles/NVMTLDriver.bundle`.
 
-Stage 2 has passed on a `46A6` (Legion Y9000P) and stages 1–3 on a `46A3` (another HP Victus
-15-fa0xxx). Acceleration is blocked on the Alder Lake-P GuC firmware (`adlp_guc_70.bin`); the
-kext links only the Meteor Lake blob today. Until that lands, the panel stays on the firmware
-framebuffer, and scanout out of XeGfx is still a copy of the finished frame (zero-copy flip is on
-its `xe-zerocopy-flip` branch). Build and test on macOS/APFS, use WTLGpuGuard/WTLBootDump for the
-boot attempts, and do not deploy it as the default until the panel is proven.
+Order: Phase A kernel → reboot → load → stages 1-3, then 4 with `--yes`; Phase B builds the
+accelerator/AGDC/framebuffers + plugin/translator + libdrm/Mesa ANV → install → reboot → stage 4
+→ desktop handover. Report results to WTLIntelGfx #3. Scanout is still a copy into the firmware
+framebuffer (zero-copy flip is on upstream's `xe-zerocopy-flip` branch); do not make XeGfx the
+default until the panel is proven.
 
 Hardware evidence is in `scan/`. Local downloads, identities, candidates and backups are
-git-ignored. macOS-side helpers for the XeGfx bring-up (read-only preflight, staged probe,
-install/rollback) are on the utility drive under `scripts/xegfx/` — `/Volumes/macUtility/`
-on macOS, `/run/media/sulthonuladib/macUtility/` from Linux. See
+git-ignored. macOS-side tooling for the XeGfx bring-up (staged sources, GuC firmware, build, install,
+probe) is on the utility drive under `scripts/xegfx/` — `/Volumes/macUtility/` on macOS,
+`/run/media/sulthonuladib/macUtility/` from Linux; start with `RUNBOOK.md`. See
 [references and attribution](REFERENCES.md) and [agent rules](AGENTS.md).

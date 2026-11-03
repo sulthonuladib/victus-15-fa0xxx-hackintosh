@@ -28,6 +28,10 @@
   WTLIntelGfx #3. Do not make it the default, or drop `master`'s fallback, until the panel is proven.
   The ESP may carry the `nmintelfb` test config (it does since 2026-11-04) while `master` keeps the
   fallback; deploy and `--check` from whichever tree you want on the ESP.
+  The macOS build/install tooling and the staged sources live on the utility drive in
+  `scripts/xegfx/` (`RUNBOOK.md`, `xegfx-run.sh`); use them instead of improvising. The
+  `adlp_guc_70.bin` patch (`xegfx-patch-guc.sh`, GuC v70.49.4) and our plugin/translator install
+  step are required on this machine; upstream v0.0.47 omits both.
 - When source references are needed, use the repos in `REFERENCES.md`. Reuse an existing checkout under `.references/`
   (including symlinks); if missing, clone only the needed repo into `.references/<repo>/`. Keep reference sources
   read-only and git-ignored. watchthelight-labs default branches vary: `WTLNvidiaGfx` is `nvgfx-2.6.2`, not `main`.
