@@ -12,24 +12,27 @@
   scrubbed placeholders and never a real serial, MLB, ROM or UUID.
 - Preserve the HP ACPI/input setup. Never set `disable-gpu` at `PciRoot(0x0)/Pci(0x2,0x0)`.
   The Tiger Lake `device-id`/`AAPL,ig-platform-id` spoof and WhateverGreen are a **transitional
-  internal-panel fallback** in the NVIDIA-HDMI baseline; they are not acceleration. The
-  NMIntelFB configuration uses the real `46A6`, no spoof and no WhateverGreen. Do not remove the
-  fallback from the baseline until NMIntelFB is proven.
+  internal-panel fallback** in the NVIDIA-HDMI baseline; they are not acceleration. Do not remove the
+  fallback from `master` until XeGfx is proven. The XeGfx test config uses the real `46A6`, no spoof,
+  no WhateverGreen, and `IONDRVSupport` present.
 - NVIDIA: the NullMoth 1401 app owns the driver. Keep `NVRM`, `NVAccel`, `NVRMFB`, `NVRMAGDC`
   in `/Library/Extensions` and the AuxKC — never inject them from `EFI/`. Keep the HDMI path
   working. With WhateverGreen present, keep `gfxrst=4`. Keep `IONDRVSupport` excluded for the
   NVIDIA baseline. Use the 1401 picker entries for removal/one-time safe start; do not hand-edit
   the NVIDIA install.
-- NMIntelFB is experimental. Build and test it on macOS/APFS in a separate branch/config, with
-  the working NVIDIA EFI kept as rollback. It needs the real Intel ID, `IONDRVSupport` present,
-  no WhateverGreen, `NMIntelFB.kext` in `/Library/Extensions`, and `debug.nvaccel_igpu=1`.
-  Do not make it the default until the internal panel is proven.
+- XeGfx (`WTLIntelGfx`, branch `main`, v0.0.47+) is the Intel acceleration path. Build and test it on
+  macOS/APFS in a separate branch/config (`nmintelfb` already has the right EFI shape), with the
+  working NVIDIA EFI kept as rollback. It installs into `/Library/Extensions` + AuxKC, never the EFI.
+  It needs the real `46A6`, `IONDRVSupport` present, no WhateverGreen, and no spoof. Alder Lake is
+  probe-only until `adlp_guc_70.bin` is linked: stop at `debug.xegfx_stage=3` and send reports to
+  WTLIntelGfx #3. Do not make it the default, or drop `master`'s fallback, until the panel is proven.
 - When source references are needed, use the repos in `REFERENCES.md`. Reuse an existing checkout under `.references/`
   (including symlinks); if missing, clone only the needed repo into `.references/<repo>/`. Keep reference sources
-  read-only and git-ignored. `~/repo/nullmoth/` is user-maintained: when asked, fetch tags and check out the latest
+  read-only and git-ignored. watchthelight-labs default branches vary: `WTLNvidiaGfx` is `nvgfx-2.6.2`, not `main`.
+  Their MT7925 kexts do not support our MT7921 (`14C3:7961`). `~/repo/nullmoth/` is user-maintained: when asked, fetch tags and check out the latest
   release tag, but do not edit its source or working tree. Keep local changes in patches/stashes/branches; preserve
   upstream licences/notices. Build copies belong on APFS, not the repo. Keep the source tag matched to the installed
-  1401/driver version before building NMIntelFB.
+  1401/driver version before building from the NullMoth tree.
 - Validate EFI edits with matching-version `ocvalidate` plus referenced-file/dependency checks. Use `python3 -B` for
   upstream imports; review recommendations instead of blindly applying them.
 - Report measured results separately from assumptions. `EXITBS:START` only means handover; GUI/Metal success needs a

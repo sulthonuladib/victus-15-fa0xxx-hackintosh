@@ -1,8 +1,9 @@
 # HP Victus 15-fa0xxx — macOS Tahoe
 
 Target: **macOS Tahoe 26.7.1 (25G241)** with OpenCore.
-Direction: **NullMoth NVIDIA driver for HDMI**, and the **NullMoth NMIntelFB experiment for the
-internal Intel panel**. The XPS/NootedGreen acceleration stack has been removed.
+Direction: **NullMoth NVIDIA driver for HDMI**, and the **XeGfx (WTLIntelGfx) i915 driver for the
+internal Intel panel**. The XPS/NootedGreen stack and the copy-only NMX/NMIntelFB framebuffer are
+no longer the target.
 
 ## Hardware
 
@@ -28,10 +29,12 @@ internal Intel panel**. The XPS/NootedGreen acceleration stack has been removed.
   (`NVRM`, `NVAccel`, `NVRMFB`, `NVRMAGDC`) and the AuxKC, never in the EFI. The HDMI output is
   the NVIDIA path. Ampere laptop validation is still listed as pending upstream; the internal
   panel is wired to Intel, so NVIDIA cannot drive it directly.
-- **Intel internal panel:** currently on the transitional Tiger Lake display fallback
-  (`device-id`/`AAPL,ig-platform-id` spoof plus WhateverGreen, no acceleration). The target is
-  the NullMoth **NMIntelFB** test framebuffer, which uses the real `46A6` and copies NVIDIA frames
-  to the panel. NMIntelFB is experimental and not installed by 1401.
+- **Intel internal panel:** the committed baseline still boots through the transitional Tiger Lake
+  display fallback (`device-id`/`AAPL,ig-platform-id` spoof plus WhateverGreen, no acceleration);
+  it stays until a real driver is proven. The target is **XeGfx** (`WTLIntelGfx` v0.0.47), i915 on
+  XNU with a Metal accelerator, using the real `46A6` with no spoof and no WhateverGreen. Alder
+  Lake is at the read-only probe: stage 2 passes on `46A6`; stage 4+ needs `adlp_guc_70.bin`
+  linked into the kext, which upstream has not done yet.
 - **Removed:** NootedGreen, the `-ngreen*`/`-allow3d`/`gfxrst=1` boot arguments, and the XPS
   acceleration references. The previous stack panicked in `IGAccelTask::withOptions` on this
   `46A6` 96 EU machine; the panic report is kept locally under `.downloads/panic-2026-10-29/`.
@@ -54,19 +57,28 @@ internal Intel panel**. The XPS/NootedGreen acceleration stack has been removed.
 - **Do not run `tools/deploy-efi.sh` from an unsynced tree.** It uses `rsync --delete`; a stale
   tree would remove AMFIPass/NullMothSafe and overwrite the 1401 config.
 
-## Next: NMIntelFB
+## Next: XeGfx on Alder Lake
 
-The NMIntelFB experiment is on its own branch/config. It needs:
+The `nmintelfb` branch already has the EFI shape XeGfx needs. Keep `master` (NVIDIA/HDMI) as the
+rollback and test on that branch:
 
-- the real Intel `46A6` (no Tiger Lake spoof) and no WhateverGreen;
-- `IONDRVSupport` present (the NVIDIA baseline's block must be removed);
-- `NMIntelFB.kext` built from the NullMoth source and installed in `/Library/Extensions`;
-- `debug.nvaccel_igpu=1` so NVAccel exposes the Intel panel as head 4;
-- the working NVIDIA/HDMI EFI kept as rollback.
+- real `46A6`, no `device-id`/`AAPL,ig-platform-id` spoof, no WhateverGreen;
+- `IONDRVSupport` present (XeGfxIntelFB links against it; the NVIDIA baseline excludes it);
+- `XeGfx.kext` built from `WTLIntelGfx` v0.0.47+ and installed with its `tools/install.sh` into
+  `/Library/Extensions` and the AuxKC, then one reboot so the collection includes it;
+- `sudo kmutil load -b org.watchthelight.XeGfx`, then `sudo sysctl debug.xegfx_stage=2`. Stage 2
+  only reads registers. Do not go past stage 3 until the Alder Lake GuC is wired in;
+- report `ioreg -l -w0 -r -c XeGfxResident` and `sysctl -b debug.xegfx_log` to WTLIntelGfx #3.
 
-NMIntelFB is a test framebuffer: display versions 12–20, phase 1 adopts the firmware-lit pipe,
-and it is not shipped by the 1401 package. Build and test on macOS/APFS; do not deploy it as the
-default until the panel is proven.
+Stage 2 has passed on a `46A6` (Legion Y9000P) and stages 1–3 on a `46A3` (another HP Victus
+15-fa0xxx). Acceleration is blocked on the Alder Lake-P GuC firmware (`adlp_guc_70.bin`); the
+kext links only the Meteor Lake blob today. Until that lands, the panel stays on the firmware
+framebuffer, and scanout out of XeGfx is still a copy of the finished frame (zero-copy flip is on
+its `xe-zerocopy-flip` branch). Build and test on macOS/APFS, use WTLGpuGuard/WTLBootDump for the
+boot attempts, and do not deploy it as the default until the panel is proven.
 
 Hardware evidence is in `scan/`. Local downloads, identities, candidates and backups are
-git-ignored. See [references and attribution](REFERENCES.md) and [agent rules](AGENTS.md).
+git-ignored. macOS-side helpers for the XeGfx bring-up (read-only preflight, staged probe,
+install/rollback) are on the utility drive under `scripts/xegfx/` — `/Volumes/macUtility/`
+on macOS, `/run/media/sulthonuladib/macUtility/` from Linux. See
+[references and attribution](REFERENCES.md) and [agent rules](AGENTS.md).
