@@ -1245,7 +1245,7 @@
 				Rg==
 				</data>
 				<key>boot-args</key>
-				<string>-v debug=0x100 keepsyms=1 amfi=0x80 IGLogLevel=3 -vi2c-force-polling nvfb=1 nvaccel=1 nvfbheads=4 -nvkmsnosmooth amfi_get_out_of_my_way=0x1 ipc_control_port_options=0 revpatch=sbvmm gfxrst=4</string>
+				<string>-v debug=0x100 keepsyms=1 amfi=0x80 IGLogLevel=3 -vi2c-force-polling nvfb=1 nvaccel=1 nvfbheads=4 -nvkmsnosmooth amfi_get_out_of_my_way=0x1 ipc_control_port_options=0 revpatch=sbvmm,cpuname revcpu=1 gfxrst=4</string>
 				<key>csr-active-config</key>
 				<data>
 				UwoAAA==
