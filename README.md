@@ -33,8 +33,9 @@ no longer the target.
   no `device-id`/`AAPL,ig-platform-id` spoof, no WhateverGreen, `IONDRVSupport` unblocked, no
   `gfxrst=4`), deployed 2026-11-04 from the `nmintelfb` branch. `master` keeps the transitional
   Tiger Lake fallback as the rollback. XeGfx itself is not installed yet: Alder Lake is at the
-  read-only probe (stage 2 passes on `46A6`), and stage 4+ needs `adlp_guc_70.bin` linked into the
-  kext, which upstream has not done yet.
+  read-only probe: stages 1-3 pass on this machine (real `46A6`, PCH `8086:5182`, stolen
+  `0x7c800000` 60 MiB, pipe A lit), and stage 4+ needs `adlp_guc_70.bin`, which we patch in
+  locally (GuC v70.49.4); upstream has not linked it.
 - **Removed:** NootedGreen, the `-ngreen*`/`-allow3d`/`gfxrst=1` boot arguments, and the XPS
   acceleration references. The previous stack panicked in `IGAccelTask::withOptions` on this
   `46A6` 96 EU machine; the panic report is kept locally under `.downloads/panic-2026-10-29/`.
