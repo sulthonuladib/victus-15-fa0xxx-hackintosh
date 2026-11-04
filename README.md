@@ -41,8 +41,10 @@ no longer the target.
   `46A6` 96 EU machine; the panic report is kept locally under `.downloads/panic-2026-10-29/`.
 - **CPU:** XCPM with `plugin-type` from `SSDT-PLUG-ALT` (`C000`), `ProvideCurrentCpuInfo` and
   CpuTopologyRebuild (E-cores as P-core SMT siblings by default). The 1401/OpCore-Simplify config
-  spoofs CPUID leaf 1 to Comet Lake (`0x0A5`), so the chip name reads generic/Unknown; that is
-  cosmetic (RestrictEvents `revcpu=1 revcpuname=…`). XCPM state not yet measured.
+  spoofs CPUID leaf 1 to Comet Lake (`0x0A5`), so the chip name would read Unknown; that is
+  cosmetic. RestrictEvents needs `revpatch` to contain `cpuname` (boot-args shadow the NVRAM
+  value), so boot-args are `revpatch=sbvmm,cpuname revcpu=1` with the name in NVRAM
+  `revcpuname`. XCPM state not yet measured.
 - **Wi-Fi:** `AirportMtkWlan` 1.5.1 Tahoe build enabled; not yet verified at runtime.
 - **Audio / Bluetooth / sleep / brightness:** not verified. Audio needs separate AppleHDA work.
 
