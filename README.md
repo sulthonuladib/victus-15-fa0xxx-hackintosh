@@ -88,9 +88,12 @@ default until the panel is proven.
 
 After a stage-4 panic, boot normally and run
 `sudo bash /Volumes/macUtility/scripts/xegfx/xegfx-collect-panic.sh`. It collects the panic,
-probe, bootdump, build and EFI evidence into `/Users/Shared/xegfx-panic/<stamp>/`, writes a
-redacted `REPORT-DRAFT.md`, and does not upload anything. Review the redacted report before
-attaching it; `raw/` is local-only.
+probe, bootdump, build and EFI evidence into
+`/Volumes/macUtility/xegfx-state/reports/<stamp>/`, updates `xegfx-state/STATE.txt`, writes a
+redacted `REPORT-DRAFT.md`, and does not upload anything. For the next stage-4 attempt, use
+`xegfx-stage4-trace.sh --yes` so the watchdog breadcrumb lands in NVRAM. Review the redacted
+report before attaching it; `raw/` is local-only. The one-page macOS run note is
+`/Volumes/macUtility/README.md`.
 
 Hardware evidence is in `scan/`. Local downloads, identities, candidates and backups are
 git-ignored. macOS-side tooling for the XeGfx bring-up (staged sources, GuC firmware, build, install,
