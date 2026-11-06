@@ -189,7 +189,7 @@ COMPUTER=$(scutil --get LocalHostName 2>/dev/null || true)
 FILES=$(find "$REP" -type f \( -name '*.txt' -o -name '*.log' -o -name '*.md' -o -name '*.panic' -o -name '*.diff' \) 2>/dev/null)
 if [ -n "$FILES" ]; then
   printf '%s\n' "$FILES" | while IFS= read -r f; do
-    perl -pi -e 's{/Users/[^/\s]+}{/Users/<user>}g; s{(IOPlatformSerialNumber"\s*=\s*")[^"]+}{$1<redacted>}g; s{(IOPlatformUUID"\s*=\s*")[^"]+}{$1<redacted>}g; s{(Serial Number:\s*).*}{$1<redacted>}g; s{(Hardware UUID:\s*).*}{$1<redacted>}g; s{\b([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}\b}{<mac>}g; s{\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b}{<ip>}g' "$f" 2>/dev/null || true
+    perl -pi -e 's{/Users/[^/\s]+}{/Users/<user>}g; s{(IOPlatformSerialNumber"\s*=\s*")[^"]+}{$1<redacted>}g; s{(IOPlatformUUID"\s*=\s*")[^"]+}{$1<redacted>}g; s{(Serial Number:\s*).*}{$1<redacted>}g; s{(Hardware UUID:\s*).*}{$1<redacted>}g; s{\b([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}\b}{<mac>}g; s{\bBSSID=[0-9A-Fa-f:]+}{BSSID=<redacted>}g; s{\bssid\[\d+\]=.*}{ssid=<redacted>}g; s{\b(?:10\.(?:[0-9]{1,3}\.){2}[0-9]{1,3}|192\.168\.(?:[0-9]{1,3}\.)[0-9]{1,3}|172\.(?:1[6-9]|2[0-9]|3[01])\.(?:[0-9]{1,3}\.)[0-9]{1,3})\b}{<ip>}g' "$f" 2>/dev/null || true
     [ -n "$HOST" ] && perl -pi -e "s/\Q$HOST\E/<host>/g" "$f" 2>/dev/null || true
     [ -n "$COMPUTER" ] && perl -pi -e "s/\Q$COMPUTER\E/<host>/g" "$f" 2>/dev/null || true
   done
@@ -201,12 +201,24 @@ PANIC_TEXT=""
 if [ -n "$PANIC_FILE" ] && [ -f "$PANIC_FILE" ]; then
   PANIC_TEXT=$(python3 - "$PANIC_FILE" <<'PY' 2>/dev/null || true
 import json, sys
-try:
-    d = json.load(open(sys.argv[1]))
-except Exception:
-    sys.exit(0)
-s = d.get("macOSPanicString") or d.get("panicString") or ""
-print(s)
+text = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+dec = json.JSONDecoder()
+i = 0
+while i < len(text):
+    while i < len(text) and text[i].isspace():
+        i += 1
+    if i >= len(text):
+        break
+    try:
+        obj, end = dec.raw_decode(text, i)
+    except Exception:
+        break
+    if isinstance(obj, dict):
+        s = obj.get("macOSPanicString") or obj.get("panicString")
+        if s:
+            print(s)
+            break
+    i = end
 PY
 )
 fi
@@ -258,8 +270,9 @@ cat > "$REP/REPORT-DRAFT.md" <<EOF
 sudo bash /Volumes/macUtility/scripts/xegfx/xegfx-probe.sh --stage 4 --yes
 \`\`\`
 
-Stages 1–3 passed before this. Stage 4 started i915; the machine got stuck and then
-panicked. The panic report and the probe report are attached.
+The read-only stages passed before this (stage 2 and 3 in the saved probe bundle;
+stage 1 was not run there). Stage 4 started i915; the machine got stuck and then
+panicked. The panic report and the probe bundle are attached.
 
 ## Panic
 
@@ -318,7 +331,7 @@ EOF
 # These files are created after the first redaction pass; redact them too.
 for f in "$REP/REPORT-DRAFT.md" "$REP/panic-excerpt.txt" "$REP/SUMMARY.txt"; do
   [ -f "$f" ] || continue
-  perl -pi -e 's{/Users/[^/\s]+}{/Users/<user>}g; s{(IOPlatformSerialNumber"\s*=\s*")[^"]+}{$1<redacted>}g; s{(IOPlatformUUID"\s*=\s*")[^"]+}{$1<redacted>}g; s{(Serial Number:\s*).*}{$1<redacted>}g; s{(Hardware UUID:\s*).*}{$1<redacted>}g; s{\b([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}\b}{<mac>}g; s{\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b}{<ip>}g' "$f" 2>/dev/null || true
+  perl -pi -e 's{/Users/[^/\s]+}{/Users/<user>}g; s{(IOPlatformSerialNumber"\s*=\s*")[^"]+}{$1<redacted>}g; s{(IOPlatformUUID"\s*=\s*")[^"]+}{$1<redacted>}g; s{(Serial Number:\s*).*}{$1<redacted>}g; s{(Hardware UUID:\s*).*}{$1<redacted>}g; s{\b([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}\b}{<mac>}g; s{\bBSSID=[0-9A-Fa-f:]+}{BSSID=<redacted>}g; s{\bssid\[\d+\]=.*}{ssid=<redacted>}g; s{\b(?:10\.(?:[0-9]{1,3}\.){2}[0-9]{1,3}|192\.168\.(?:[0-9]{1,3}\.)[0-9]{1,3}|172\.(?:1[6-9]|2[0-9]|3[01])\.(?:[0-9]{1,3}\.)[0-9]{1,3})\b}{<ip>}g' "$f" 2>/dev/null || true
   [ -n "$HOST" ] && perl -pi -e "s/\Q$HOST\E/<host>/g" "$f" 2>/dev/null || true
   [ -n "$COMPUTER" ] && perl -pi -e "s/\Q$COMPUTER\E/<host>/g" "$f" 2>/dev/null || true
 done
