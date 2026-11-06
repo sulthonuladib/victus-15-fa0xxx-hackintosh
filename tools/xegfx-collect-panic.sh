@@ -15,7 +15,16 @@
 set -u
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-OUTBASE=${XEGFX_PANIC_OUT:-/Users/Shared/xegfx-panic}
+if [ -n "${XEGFX_PANIC_OUT:-}" ]; then
+  OUTBASE=$XEGFX_PANIC_OUT
+else
+  [ -d /Volumes/macUtility ] || {
+    echo "STOP: macUtility is not mounted at /Volumes/macUtility." >&2
+    echo "      Mount it, or set XEGFX_PANIC_OUT to a directory." >&2
+    exit 1
+  }
+  OUTBASE=/Volumes/macUtility/xegfx-state/reports
+fi
 STAMP=$(date +%Y%m%d-%H%M%S)
 DIR="$OUTBASE/$STAMP"
 RAW="$DIR/raw"
@@ -340,6 +349,23 @@ done
 
 # ---- archive and ownership -------------------------------------------------
 ( cd "$DIR" && COPYFILE_DISABLE=1 tar -czf "xegfx-panic-$STAMP.tgz" report ) 2>/dev/null || true
+STATEDIR=$(dirname "$OUTBASE")
+if [ -d "$STATEDIR" ]; then
+  cat > "$STATEDIR/STATE.txt" <<EOF
+updated: $(date '+%Y-%m-%d %H:%M:%S %z')
+host: ${HOST:-unknown}
+macOS: ${MACOS:-?} (${BUILD:-?})
+model: ${MODEL:-?}
+cpu: ${CPU:-?}
+panic: $(basename "${PANIC_FILE:-none}")
+source: ${SRC_REV:-?}
+report: $REP
+archive: $DIR/xegfx-panic-$STAMP.tgz
+next: inspect report/REPORT-DRAFT.md; for another run use xegfx-stage4-trace.sh --yes
+note: raw/ is unredacted and local to this disk; nothing was uploaded
+EOF
+  chown "$CONSOLE_USER":staff "$STATEDIR/STATE.txt" 2>/dev/null || true
+fi
 chown -R "$CONSOLE_USER":staff "$DIR" 2>/dev/null || true
 
 say ""
