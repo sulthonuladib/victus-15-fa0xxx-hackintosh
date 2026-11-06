@@ -86,6 +86,12 @@ accelerator/AGDC/framebuffers + plugin/translator + libdrm/Mesa ANV → install 
 framebuffer (zero-copy flip is on upstream's `xe-zerocopy-flip` branch); do not make XeGfx the
 default until the panel is proven.
 
+After a stage-4 panic, boot normally and run
+`sudo bash /Volumes/macUtility/scripts/xegfx/xegfx-collect-panic.sh`. It collects the panic,
+probe, bootdump, build and EFI evidence into `/Users/Shared/xegfx-panic/<stamp>/`, writes a
+redacted `REPORT-DRAFT.md`, and does not upload anything. Review the redacted report before
+attaching it; `raw/` is local-only.
+
 Hardware evidence is in `scan/`. Local downloads, identities, candidates and backups are
 git-ignored. macOS-side tooling for the XeGfx bring-up (staged sources, GuC firmware, build, install,
 probe) is on the utility drive under `scripts/xegfx/` — `/Volumes/macUtility/` on macOS,
