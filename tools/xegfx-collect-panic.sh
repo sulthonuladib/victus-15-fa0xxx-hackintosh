@@ -53,6 +53,8 @@ say "user: $CONSOLE_USER ($USER_HOME)"
   echo
   echo "## boot-args / csr"
   nvram -p 2>/dev/null | grep -Ei 'boot-args|csr-active-config' || true
+  echo "## XeGfx NVRAM step trace"
+  nvram -p 2>/dev/null | grep -Ei 'xegfx-step' || true
   echo
   echo "## loaded kexts"
   kmutil showloaded 2>/dev/null | grep -Ei 'watchthelight|XeGfx|NMIntelFB|NVRM|NVAccel|WhateverGreen|IONDRVSupport|AppleIntel' || true
