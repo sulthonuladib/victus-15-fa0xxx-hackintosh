@@ -24,6 +24,19 @@ no longer the target.
 
 ## Current state
 
+- **WhateverXe (branch `whateverxe-adl`, 2026-11-10):** the `MACEFI` ESP now holds a **fresh
+  OpenCore-Simplify tree**, not the 1401 base. WhateverXe 0.8.0 (Lilu plugin, kept directly
+  after Lilu), **AMFIPass 1.4.1 Mod** (the b00t0x build from WhateverXe-Graphics `extras/`,
+  byte-identical to that zip), `csr-active-config=0x803`, boot-args
+  `-allow3d -disablegfxfirmware -igfxdvmt ctrsmt=full`. DVMT is fixed at 60 MB in this
+  firmware, so the iGPU carries `framebuffer-patch-enable`/`framebuffer-stolenmem=0x3C00000`
+  and has **no** `device-id`/`AAPL,ig-platform-id` spoof; WhateverGreen is gone. Input is
+  VoodooPS2 (PS/2 keyboard) + VoodooI2C/VoodooI2CHID (ELAN0788), Wi-Fi is AirportMtkWlan
+  (MT7921) and `BlueToolFixup` is carried for third-party BT — no MT7921 firmware loader
+  exists, so Bluetooth itself stays unsupported.
+- **Tahoe 26.7.1 is installed** on the APFS partition; the picker waits for a key (`Timeout=0`)
+  with auxiliary entries visible.
+
 - **Tahoe boots** through the `MACEFI` OpenCore EFI.
 - **NVIDIA:** installed with the NullMoth 1401 Mac app. The driver lives in `/Library/Extensions`
   (`NVRM`, `NVAccel`, `NVRMFB`, `NVRMAGDC`) and the AuxKC, never in the EFI. The HDMI output is
@@ -52,20 +65,45 @@ no longer the target.
 
 - `EFI/` is the single source; git history is the rollback. Deploy with `tools/deploy-efi.sh`;
   never hand-edit the ESP.
-- The 1401 changes are synced into `EFI/`: `AMFIPass.kext` 1.4.1, `IONDRVSupport` excluded,
-  `nvfb=1 nvaccel=1 nvfbheads=4 -nvkmsnosmooth`, `csr-active-config=0x0A53`, the NullMothSafe
-  tools, and `HideAuxiliary=false`. `gfxrst=4` is set for WhateverGreen + NVIDIA.
-- 27 enabled kexts (including AMFIPass), 9 SSDTs, 3 drivers. The private identity stays only in
-  the deployed config and the git-ignored `EFI/OC/identity.plist`; the committed config keeps
-  `REPLACEME…` placeholders.
-- The 1401 app added two picker tools: **“1401: Remove NVIDIA driver”** and **“1401: Start once
-  without NVIDIA driver”**. Use the first for a clean NVIDIA rollback; it restores the
-  pre-install config.
-- **Do not run `tools/deploy-efi.sh` from an unsynced tree.** It uses `rsync --delete`; a stale
-  tree would remove AMFIPass/NullMothSafe and overwrite the 1401 config.
-- The ESP currently holds the `nmintelfb` config, so run `--check`/deploy from that branch (a
-  `git worktree` works) or from `master` when rolling the fallback back. Matching `ocvalidate`
-  (1.0.9 `.linux` from the 1401 OpenCore zip) lives in `.downloads/ocvalidate`.
+- This branch's `EFI/` **is** the ESP tree: 28 enabled kexts (WhateverXe + AMFIPass Mod +
+  VoodooPS2/I2C + AirportMtkWlan + BlueToolFixup), 11 SSDTs, 5 drivers, 0 tools. It keeps the
+  OpenCore-Simplify defaults (`PickerMode=External` with OpenCanopy, `Timeout=0`,
+  `HideAuxiliary=false`, `ScanPolicy=0`) and has no `Kernel/Block`, so `IONDRVSupport` loads —
+  required by WhateverXe. The NVIDIA stack has no EFI presence here at all.
+- The private identity stays only in the deployed config and the git-ignored
+  `EFI/OC/identity.plist`; the committed config keeps `REPLACEME…` placeholders. Re-capture with
+  `tools/deploy-efi.sh --capture` after any identity change.
+- The 1401-era pieces on `master` (NullMothSafe tools, `IONDRVSupport` exclusion, `gfxrst=4`,
+  `nvfb*`/`nvaccel*` boot-args, `csr-active-config=0x0A53`) do **not** exist on this branch.
+  Rolling back to NVIDIA means switching back to `master` and redeploying from it.
+- **Do not run `tools/deploy-efi.sh` from an unsynced tree.** It uses `rsync --delete`.
+- Matching `ocvalidate` (1.0.9 `.linux` from the 1401 OpenCore zip) lives in `.downloads/ocvalidate`.
+  `--check` ignores `EFI/OC/identity.plist`, which is git-ignored and never deployed.
+## Next: WhateverXe on Alder Lake-P
+
+Install order: EFI first (done on the ESP), then the WhateverXe Graphics pkg, then a restart so
+AuxKC rebuilds. The pkg installs under `/Library` and never touches the EFI or SIP. Graphics
+`0.4.1` is the match for WEX `0.8.0`; both must be updated together. Full disk access for the
+installer is not needed, root is.
+
+Known Alder Lake-P (`46A6`) trouble in upstream, from the WEX issue tracker:
+
+- [#68](https://github.com/b00t0x/WhateverXe/issues/68) — an **0.8.0 regression on 46A6 eDP**
+  loses acceleration (`FB0: FB has no memory allocated`). The reporter shows 0.7.0 kext +
+  Graphics 0.4.1 working on the same macOS build we run. Keep `WhateverXe-0.7.0-RELEASE.zip`
+  as the rollback kext.
+- [#43](https://github.com/b00t0x/WhateverXe/issues/43) — the eDP link the firmware trained is
+  torn down and retrained, and the panel stays dark on several Alder Lake laptops. The opt-in
+  `-wex-edp-keep` lives only on the `nickk19/WhateverXe` fork (branch `display13-edp-keep-080`);
+  neither 0.7.0 nor 0.8.0 main knows that argument.
+- [#57](https://github.com/b00t0x/WhateverXe/issues/57) — the 60 MB stolen-memory path is exactly
+  the one the README prescribes for our DVMT setting; nothing else to do there on bare metal.
+- [#42](https://github.com/b00t0x/WhateverXe/issues/42), [#50](https://github.com/b00t0x/WhateverXe/issues/50)
+  — freezes and eDP link loss under load on 46A6; treat long-run stability as unproven.
+
+The usable debug switches in the 0.8.0 binary are `-wexdbg`, `-wexoff`, `-wex-noaccel`,
+`-wex-adlp-load-only`, `-wex-adlp-readout`, `-wex-display-trace`, `-wex-display13-trace` and the
+`-wex-adln-*` stage probes; there is no `-wex-edp-keep`.
 
 ## Next: XeGfx on Alder Lake
 

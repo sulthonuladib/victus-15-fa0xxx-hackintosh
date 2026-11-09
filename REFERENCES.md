@@ -14,7 +14,9 @@
 | [USBToolBox](https://github.com/USBToolBox/kext), [XHCI-unsupported](https://github.com/RehabMan/OS-X-USB-Inject-All) | USB support |
 | [RealtekRTL8111](https://github.com/Mieze/RTL8111_driver_for_OS_X) | Ethernet driver |
 | [AirportMtkWlan](https://github.com/Arxusion/AirportMtkWlan) | MediaTek MT7921 Wi-Fi, Tahoe build |
-| [AMFIPass](https://github.com/dhinakg/AMFIPass) | AMFI compatibility for the NullMoth driver (1401 copy, 1.4.1) |
+| [WhateverXe](https://github.com/b00t0x/WhateverXe) | Intel Xe-LP graphics: Lilu plugin that prepares the Apple drivers for Tiger Lake–Raptor Lake iGPUs. `0.8.0` is in `EFI/`; `46A6` (Alder Lake-H/P) has an implemented backend. |
+| [WhateverXe Graphics](https://github.com/b00t0x/WhateverXe-Graphics) | Signed userspace half of WhateverXe (accelerator, framebuffer, Metal plugin/translator). Installs under `/Library` + AuxKC; `0.4.1` matches WEX `0.8.0`. Also the source of the **AMFIPass 1.4.1 Mod** we run. |
+| [AMFIPass](https://github.com/dhinakg/AMFIPass) | AMFI compatibility. `master` carries upstream 1.4.1 for the NullMoth driver; this branch carries the b00t0x **Mod** build from WhateverXe-Graphics `extras/`, which WhateverXe requires instead of upstream. Never load both. |
 
 ## Graphics
 
@@ -24,6 +26,7 @@
 | [1401](https://github.com/nullmoth/1401) | Mac/Windows installer that owns the NVIDIA install and removal path. |
 | [WTLIntelGfx](https://github.com/watchthelight-labs/WTLIntelGfx) (XeGfx, branch `main`, tag `v0.0.47`) | The target for Intel internal-panel acceleration: Linux i915 on XNU, Mesa ANV and a NullMoth-derived Metal accelerator. Uses the real `46A6`, no spoof, no WhateverGreen. Alder Lake is at the read-only probe: stage 2 passes on `46A6`; stage 4+ needs `adlp_guc_70.bin`, which upstream does not link. We add it (GuC v70.49.4 from linux-firmware, whose i915 blobs now live under `i915/`) plus the plugin/translator install; the macOS runbook and staged sources are on the utility drive. Installs into `/Library/Extensions` + AuxKC and `/Library/GPUBundles`, never the EFI. Licence is split: BSD-2-Clause shim/build/tools, PolyForm Noncommercial 1.0.0 for the plugin, accelerator, AGDC and the Intel framebuffer, LGPL-3.0 translator. |
 | [WTLNvidiaGfx](https://github.com/watchthelight-labs/WTLNvidiaGfx) (default branch `nvgfx-2.6.2`; `main` mirrors upstream) | Reference only, not installed. NullMoth fork kept for an RTX 5070 Laptop (`10DE:2D18`); it adds nothing for our Ampere `10DE:25A2`, which upstream still lists as pending validation. Its `xe-2.6.2` branch holds the plugin/accelerator history that now lives in WTLIntelGfx. |
+| [nickk19/WhateverXe](https://github.com/nickk19/WhateverXe) (branch `display13-edp-keep-080`) | Read-only reference for the Alder Lake eDP work in WEX issue #43 (`-wex-edp-keep`, VBT panel-type 0xFF, eDP port mode 0 at handoff). Not built or installed; upstream 0.7.0/0.8.0 do not contain those patches. |
 
 ## Testing and verification
 
