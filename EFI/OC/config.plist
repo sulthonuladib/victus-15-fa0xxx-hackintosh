@@ -1202,10 +1202,10 @@
 				Rg==
 				</data>
 				<key>boot-args</key>
-				<string>-v debug=0x100 keepsyms=1 -allow3d -disablegfxfirmware -igfxdvmt ctrsmt=full -vi2c-force-polling</string>
+				<string>-v debug=0x100 keepsyms=1 -allow3d -disablegfxfirmware -igfxdvmt ctrsmt=full -vi2c-force-polling -wex-adlp-readout -wex-display-trace</string>
 				<key>csr-active-config</key>
 				<data>
-				AwgAAA==
+				AwoAAA==
 				</data>
 				<key>prev-lang:kbd</key>
 				<data>

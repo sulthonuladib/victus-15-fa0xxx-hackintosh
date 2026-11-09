@@ -24,42 +24,32 @@ no longer the target.
 
 ## Current state
 
-- **WhateverXe (branch `whateverxe-adl`, 2026-11-10):** the `MACEFI` ESP now holds a **fresh
-  OpenCore-Simplify tree**, not the 1401 base. WhateverXe 0.8.0 (Lilu plugin, kept directly
-  after Lilu), **AMFIPass 1.4.1 Mod** (the b00t0x build from WhateverXe-Graphics `extras/`,
-  byte-identical to that zip), `csr-active-config=0x803`, boot-args
-  `-allow3d -disablegfxfirmware -igfxdvmt ctrsmt=full`. DVMT is fixed at 60 MB in this
-  firmware, so the iGPU carries `framebuffer-patch-enable`/`framebuffer-stolenmem=0x3C00000`
-  and has **no** `device-id`/`AAPL,ig-platform-id` spoof; WhateverGreen is gone. Input is
-  VoodooPS2 (PS/2 keyboard) + VoodooI2C/VoodooI2CHID (ELAN0788), Wi-Fi is AirportMtkWlan
-  (MT7921) and `BlueToolFixup` is carried for third-party BT — no MT7921 firmware loader
-  exists, so Bluetooth itself stays unsupported.
-- **Tahoe 26.7.1 is installed** on the APFS partition; the picker waits for a key (`Timeout=0`)
-  with auxiliary entries visible.
+- **WhateverXe (branch `whateverxe-adl`, 2026-11-10):** the `MACEFI` ESP holds a **fresh
+  OpenCore-Simplify tree**, not the 1401 base. WhateverXe **0.7.0** (Lilu plugin, directly after
+  Lilu; 0.8.0 loses the framebuffer allocation on `46A6` eDP, WEX #68) plus **AMFIPass 1.4.1
+  Mod** (byte-identical to WhateverXe-Graphics `extras/`). `csr-active-config=0x0A03` — the
+  `0x200` bit covers the Mod-signed AuxKC payloads. Boot-args
+  `-allow3d -disablegfxfirmware -igfxdvmt ctrsmt=full`, temporarily with
+  `-wex-adlp-readout -wex-display-trace` for the first bring-up. DVMT is fixed at 60 MB, so the
+  iGPU carries `framebuffer-patch-enable` + `framebuffer-stolenmem=0x3C00000` and **no**
+  `device-id`/`AAPL,ig-platform-id` spoof; no WhateverGreen. Input is VoodooPS2 (PS/2) +
+  VoodooI2C/VoodooI2CHID (ELAN0788), Wi-Fi is AirportMtkWlan (MT7921), `BlueToolFixup` is
+  carried for third-party BT (no MT7921 loader exists, so BT stays unsupported).
+- **Tahoe 26.7.1 is installed** on the APFS partition; WhateverXe Graphics 0.4.1 is installed in
+  `/Library` + AuxKC but has not produced acceleration yet. The picker waits for a key
+  (`Timeout=0`) with auxiliary entries visible.
 
-- **Tahoe boots** through the `MACEFI` OpenCore EFI.
-- **NVIDIA:** installed with the NullMoth 1401 Mac app. The driver lives in `/Library/Extensions`
-  (`NVRM`, `NVAccel`, `NVRMFB`, `NVRMAGDC`) and the AuxKC, never in the EFI. The HDMI output is
-  the NVIDIA path. Ampere laptop validation is still listed as pending upstream; the internal
-  panel is wired to Intel, so NVIDIA cannot drive it directly.
-- **Intel internal panel:** the deployed `MACEFI` config is now the XeGfx test shape (real `46A6`,
-  no `device-id`/`AAPL,ig-platform-id` spoof, no WhateverGreen, `IONDRVSupport` unblocked, no
-  `gfxrst=4`), deployed 2026-11-04 from the `nmintelfb` branch. `master` keeps the transitional
-  Tiger Lake fallback as the rollback. XeGfx itself is not installed yet: Alder Lake is at the
-  read-only probe: stages 1-3 pass on this machine (real `46A6`, PCH `8086:5182`, stolen
-  `0x7c800000` 60 MiB, pipe A lit), and stage 4+ needs `adlp_guc_70.bin`, which we patch in
-  locally (GuC v70.49.4); upstream has not linked it.
-- **Removed:** NootedGreen, the `-ngreen*`/`-allow3d`/`gfxrst=1` boot arguments, and the XPS
-  acceleration references. The previous stack panicked in `IGAccelTask::withOptions` on this
-  `46A6` 96 EU machine; the panic report is kept locally under `.downloads/panic-2026-10-29/`.
-- **CPU:** XCPM with `plugin-type` from `SSDT-PLUG-ALT` (`C000`), `ProvideCurrentCpuInfo` and
-  CpuTopologyRebuild (E-cores as P-core SMT siblings by default). The 1401/OpCore-Simplify config
-  spoofs CPUID leaf 1 to Comet Lake (`0x0A5`), so the chip name would read Unknown; that is
-  cosmetic. RestrictEvents needs `revpatch` to contain `cpuname` (boot-args shadow the NVRAM
-  value), so boot-args are `revpatch=sbvmm,cpuname revcpu=1` with the name in NVRAM
-  `revcpuname`. XCPM state not yet measured.
-- **Wi-Fi:** `AirportMtkWlan` 1.5.1 Tahoe build enabled; not yet verified at runtime.
-- **Audio / Bluetooth / sleep / brightness:** not verified. Audio needs separate AppleHDA work.
+- **Not installed on this install:** no NullMoth/1401 NVIDIA driver, no WhateverGreen, no
+  XeGfx, no XPS stack. This is a scratch Tahoe install whose only graphics stack is WhateverXe,
+  and it needs `IONDRVSupport` and no spoof. The NVIDIA and XeGfx history lives on `master`.
+- **CPU:** XCPM via `SSDT-PLUG-ALT` (`plugin-type` `C000`), `ProvideCurrentCpuInfo` true and
+  CpuTopologyRebuild enabled. OpCore-Simplify spoofs CPUID leaf 1 to Comet Lake (`0x0A5`); that is
+  cosmetic for the chip name. RestrictEvents keeps `revpatch=sbvmm,cpuname` + `revcpu=1` with
+  `revcpuname` in NVRAM.
+- **Wi-Fi:** `AirportMtkWlan` 1.5.0 (MT7921, kernel 25.x builds only) enabled; not yet verified at
+  runtime on this install. Bluetooth (`13D3:3567`) has no macOS firmware loader — `MtkBt` matches
+  MT7925 ids only — so `BlueToolFixup` is present but BT is not expected to work.
+- **Audio / sleep / brightness:** not verified; WEX calls sleep/wake experimental.
 
 ## EFI
 
