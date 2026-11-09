@@ -29,8 +29,9 @@ no longer the target.
   Lilu; 0.8.0 loses the framebuffer allocation on `46A6` eDP, WEX #68) plus **AMFIPass 1.4.1
   Mod** (byte-identical to WhateverXe-Graphics `extras/`). `csr-active-config=0x0A03` — the
   `0x200` bit covers the Mod-signed AuxKC payloads. Boot-args
-  `-allow3d -disablegfxfirmware -igfxdvmt ctrsmt=full`, temporarily with
-  `-wex-adlp-readout -wex-display-trace` for the first bring-up. DVMT is fixed at 60 MB, so the
+  `-allow3d -disablegfxfirmware -igfxdvmt ctrsmt=full -wex-display-trace`. Never add
+  `-wex-adlp-readout`/`-wex-adlp-load-only`: WEX turns both into an "ADL-P load-only" boot that
+  patches `probe`/`start` to reject the framebuffer and the accelerator. DVMT is fixed at 60 MB, so the
   iGPU carries `framebuffer-patch-enable` + `framebuffer-stolenmem=0x3C00000` and **no**
   `device-id`/`AAPL,ig-platform-id` spoof; no WhateverGreen. Input is VoodooPS2 (PS/2) +
   VoodooI2C/VoodooI2CHID (ELAN0788), Wi-Fi is AirportMtkWlan (MT7921), `BlueToolFixup` is
