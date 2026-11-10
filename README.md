@@ -87,7 +87,16 @@ no longer the target.
   pin amps are mute-only (`AMP_OUT_CAP` `0x80000000`, no gain). Layout 13 drives `0x17 <- DAC 0x03`
   — a muted, un-enabled pin fed by an idle converter, which is exactly the silence. Of the three
   layouts AppleALC ships for ALC245, **layout 11** is the only one whose speaker path is
-  `0x14 <- 0x02`, so the boot-args now say `alcid=11`. Microphone and headphone-jack switching are
+  `0x14 <- 0x02`, so the boot-args now say `alcid=11`. The reason the codec never made a sound is
+  one step up from that: with layout 13 the driver powers up **only** its own converter
+  (`GET_POWER_STATE` on `0x03` = D0 while playing, `0x02` and `0x14` stay **D3**) and D3 passes no
+  audio, so the real speaker path was powered down as well as muted. Forcing the AFG, both DACs and
+  the pins to D0 and re-asserting `0x14` unmuted/enabled made the codec's own beep generator
+  audible (measured 19:48, on the wire: `SET_POWER_STATE 0`, `SET_AMP_GAIN_MUTE 0xD07f`,
+  `SET_PIN_WIDGET_CONTROL 0x40`, `SET_EAPD_BTLENABLE 0x02`) — so the analog chain, speakers
+  included, is fine and only the path/power selection was wrong. Platforms11.xml carries Amp
+  configs on both `0x14` and `0x02`, so the driver should unmute and power them itself once it
+  selects that path. Microphone and headphone-jack switching are
   not verified. Requires `Kernel > Quirks > DisableLinkeditJettison=true` (set).
 - **Display off does not come back (2026-11-10, on the pre-WM-fix kext).** With `displaysleep 10`
   the panel blanked at 18:56 and never returned; the logs show a pipe-A underrun at 18:56:03 and
