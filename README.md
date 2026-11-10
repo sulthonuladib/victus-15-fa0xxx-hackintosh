@@ -63,7 +63,7 @@ no longer the target.
   just saw), `audio-verbs.sh` + `tools/alc-verb` (ALC245 codec dump through AppleALC),
   `bench/bench-cpu.sh` (same CPU benchmark on macOS and Linux), `bench/CPU-NOTES.md`,
   `dgpu-off/` (validated SSDT to power off the RTX 3050) and `reports/` (research write-ups).
-- **Audio: HDA stack loads, no sound yet; codec triage armed (2026-11-10).** Tahoe does not ship `AppleHDA.kext`
+- **Audio works (2026-11-10, `alcid=11`).** Tahoe does not ship `AppleHDA.kext`
   (`/System/Library/Extensions/AppleHDA.kext` is absent on this 26.7.1), so AppleALC alone cannot
   produce sound. The ESP carries **AppleALC 1.9.8** followed by **SimpleHDA 1.0.1** (a Lilu plugin
   that injects the original Apple HDA stack — no root patch, no system-volume write, no AuxKC
@@ -95,9 +95,21 @@ no longer the target.
   audible (measured 19:48, on the wire: `SET_POWER_STATE 0`, `SET_AMP_GAIN_MUTE 0xD07f`,
   `SET_PIN_WIDGET_CONTROL 0x40`, `SET_EAPD_BTLENABLE 0x02`) — so the analog chain, speakers
   included, is fine and only the path/power selection was wrong. Platforms11.xml carries Amp
-  configs on both `0x14` and `0x02`, so the driver should unmute and power them itself once it
-  selects that path. Microphone and headphone-jack switching are
+  configs on both `0x14` and `0x02`, so the driver unmutes and powers them itself once it selects
+  that path — confirmed by ear after the 20:44 boot: internal speakers play, `Built-in Output` is
+  the default device. At idle the driver parks the widgets back in D3 with `0x14` muted, which is
+  normal power management, not a fault. Microphone and headphone-jack switching are
   not verified. Requires `Kernel > Quirks > DisableLinkeditJettison=true` (set).
+- **dGPU: powered but hidden (2026-11-10).** `SSDT-DGPU-POFF` (the `_INI` -> firmware `POFF()`
+  approach) **loads** — the boot log shows `SSDT ... (v02 HPQOEM DGPUOFF ...)` — but `POFF()` does
+  not finish on macOS: `01:00.0` still answers with real config space (`10de:25a2`, revision `a1`)
+  and the GPU keeps its D0. The HP firmware's `PSTA/_STA` only reports the device absent when its
+  GNVS `VDID` is `0xFFFFFFFF`, which never happens here. So the ESP now carries
+  `SSDT-DGPU-HIDE.aml` instead: `\_SB.PC00.PEG1.PEGP._STA` returns 0 (there is no firmware `_STA`
+  on that device, only on `PEG1`, so nothing collides) and the `POFF()` call moved into its own
+  present device's `_INI` (a device whose `_STA` is 0 is never initialised). Effect to verify on the
+  next boot: no `10de:25a2` in the IORegistry, nothing under Graphics/Displays, no NullMoth binding
+  surface. It does not guarantee the rail is cut; if it is not, only a firmware-level cut would be.
 - **Display off does not come back (2026-11-10, on the pre-WM-fix kext).** With `displaysleep 10`
   the panel blanked at 18:56 and never returned; the logs show a pipe-A underrun at 18:56:03 and
   then 12208 `WindowServer ... [com.apple.CoreDisplay] [ERROR] - Fallback GPU Display Pipe
