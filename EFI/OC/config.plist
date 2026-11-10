@@ -96,11 +96,11 @@
 			</dict>
 			<dict>
 				<key>Comment</key>
-				<string>Hide NVIDIA dGPU: PEGP._STA=0, POFF from our own _INI (POFF alone left the rail on)</string>
+				<string>dGPU off: MMIO-only POFF tail (PERST# + rail) at _INI, PEGP._STA=0; skips the EC write that aborts POFF</string>
 				<key>Enabled</key>
 				<true/>
 				<key>Path</key>
-				<string>SSDT-DGPU-HIDE.aml</string>
+				<string>SSDT-DGPU-POFF2.aml</string>
 			</dict>
 		</array>
 		<key>Delete</key>

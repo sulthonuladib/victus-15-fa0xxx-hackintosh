@@ -105,11 +105,19 @@ no longer the target.
   not finish on macOS: `01:00.0` still answers with real config space (`10de:25a2`, revision `a1`)
   and the GPU keeps its D0. The HP firmware's `PSTA/_STA` only reports the device absent when its
   GNVS `VDID` is `0xFFFFFFFF`, which never happens here. So the ESP now carries
-  `SSDT-DGPU-HIDE.aml` instead: `\_SB.PC00.PEG1.PEGP._STA` returns 0 (there is no firmware `_STA`
-  on that device, only on `PEG1`, so nothing collides) and the `POFF()` call moved into its own
-  present device's `_INI` (a device whose `_STA` is 0 is never initialised). Effect to verify on the
-  next boot: no `10de:25a2` in the IORegistry, nothing under Graphics/Displays, no NullMoth binding
-  surface. It does not guarantee the rail is cut; if it is not, only a firmware-level cut would be.
+  `_STA = 0` on `PEGP` (no firmware `_STA` there, only on `PEG1`) **did not hide it either** — and
+  that is the lesson: macOS enumerates PCI functions from the bridge's hardware scan, so an ACPI
+  `_STA` returning 0 removes the ACPI node, not the PCI function. Measured on the 20:54 boot with
+  the table loaded and `\_SB.DGPO._INI` visibly executing: `01:00.0` still answered with real
+  config space. Only the hardware can make it disappear.
+  That is what the firmware `POFF()` is for, and it aborts: its **first** statement is
+  `\_SB.PC00.LPCB.EC0.GFXT = 0`, and in `_INI` the ACPI EC handler (AppleACPIEC) is not installed
+  yet, so the store fails with AE_NOT_EXIST and the method never reaches `\PIN.ON(RSTG)` or
+  `\PIN.OFF(PWRG)`. Those two are pure MMIO (`\PIN` -> `\_SB.SGOV`, a SystemMemory OperationRegion
+  on `PADCFG_DW0`), so they work at any time — the current ESP carries `SSDT-DGPU-POFF2.aml`, which
+  replays exactly that tail (PERST# assert, then the rail if `GPPR()==1`) with the firmware's own
+  pin numbers from GNVS, plus `PEGP._STA = 0`. Verify on the next boot with
+  `lspci -s 01:00.0` (absent or `ffffffff`) and `ioreg -l | grep -c 25a2` (0).
 - **Display off does not come back (2026-11-10, on the pre-WM-fix kext).** With `displaysleep 10`
   the panel blanked at 18:56 and never returned; the logs show a pipe-A underrun at 18:56:03 and
   then 12208 `WindowServer ... [com.apple.CoreDisplay] [ERROR] - Fallback GPU Display Pipe
