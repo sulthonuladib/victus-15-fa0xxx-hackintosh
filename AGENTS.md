@@ -46,9 +46,19 @@
 - When spawning work in a rex pane, start the interactive `pi "<prompt>"`, not `pi -p`: print mode
   buffers everything until it exits and leaves the pane blank, so nobody can watch progress or
   interrupt it. Collect results with `rex capture` and the report file the agent writes.
-- Validate EFI edits with matching-version `ocvalidate` plus referenced-file/dependency checks (the 1.0.9
-  `.linux` build from the 1401 OpenCore zip sits in `.downloads/ocvalidate`). Use `python3 -B` for
-  upstream imports; review recommendations instead of blindly applying them.
+- Validate EFI edits with matching-version `ocvalidate` plus referenced-file/dependency checks. The
+  binary is host-specific: `.downloads/ocvalidate-macos/` (1.0.8, from the OpenCore RELEASE zip) and
+  `.downloads/ocvalidate-linux/`; `tools/deploy-efi.sh` picks by `uname -s` and refuses to write a
+  non-FAT32 or system volume. Use `python3 -B` for upstream imports; review recommendations instead
+  of blindly applying them.
+- Two findings are settled and should not be re-litigated without new evidence: (1) **Metal 3** — the
+  family flag is a 2-byte patch at `AppleIntelTGLGraphicsMTLDriver` offset `0x22957`
+  (`0x2711`→`0x2712`), but real Metal 3 dies in our own `XeCompilerAdapter` (mesh serialized
+  request) and in the plugin's missing target architecture; keep the flag off, restore with
+  `macUtility/whateverxe/mtl3-backup/restore-stock.sh`. (2) **dGPU off** — only PERST#/rail removal
+  makes a PCI function disappear (`_STA = 0` does not, macOS scans the bridge); the firmware
+  `POFF()` aborts on its first EC write when called from `_INI`, so `SSDT-DGPU-POFF2` replays just
+  its MMIO tail via `\PIN`/`\_SB.SGOV` with GNVS pin numbers.
 - Report measured results separately from assumptions. `EXITBS:START` only means handover; GUI/Metal success needs a
   real boot test. Keep README status current and concise.
 - Keep docs to these three files. Use release tags/commit IDs and relevant source links; avoid session handoffs,

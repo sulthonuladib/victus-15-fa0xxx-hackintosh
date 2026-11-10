@@ -1,9 +1,9 @@
 # HP Victus 15-fa0xxx — macOS Tahoe
 
-Target: **macOS Tahoe 26.7.1 (25G241)** with OpenCore.
-Direction: **NullMoth NVIDIA driver for HDMI**, and the **XeGfx (WTLIntelGfx) i915 driver for the
-internal Intel panel**. The XPS/NootedGreen stack and the copy-only NMX/NMIntelFB framebuffer are
-no longer the target.
+Target: **macOS Tahoe 26.7.1 (25G241)**, OpenCore 1.0.8, SMBIOS `MacBookPro16,2`.
+This branch runs the **Intel Xe iGPU** with WhateverXe (WEX) and drives the internal eDP panel; the
+NVIDIA dGPU is powered off and no longer enumerates. The NVIDIA/NullMoth and XeGfx histories live on
+`master`; see [REFERENCES.md](REFERENCES.md).
 
 ## Hardware
 
@@ -11,250 +11,220 @@ no longer the target.
 |---|---|
 | Laptop / board | HP Victus 15-fa0xxx / 8A4F |
 | CPU | Intel Core i7-12700H, 6 P-cores + 8 E-cores, 20 threads |
-| Intel GPU | Alder Lake-P Iris Xe, `8086:46A6` |
-| NVIDIA GPU | RTX 3050 Mobile, `10DE:25A2` |
-| Display | CMN1521 internal eDP panel, connected to Intel; HDMI connected to NVIDIA |
+| Intel GPU | Alder Lake-P Iris Xe, `8086:46A6`, 96 EU |
+| NVIDIA GPU | RTX 3050 Mobile `10DE:25A2` + HDA `10DE:2291` — **off, not enumerated** |
+| Display | CMN1521 internal eDP, 1920x1080 @ 144 Hz, on the Intel GPU (HDMI is wired to the NVIDIA) |
 | Audio | Realtek ALC245, `10EC:0245` |
-| Keyboard | PS/2 |
-| Touchpad | ELAN0788 I2C HID, `04F3:321A` |
-| Wi-Fi | MediaTek MT7921, `14C3:7961` |
-| Bluetooth | IMC/MediaTek USB, `13D3:3567` |
-| Ethernet | Realtek RTL8111, `10EC:8168` |
-| Storage | Samsung PM9A1 NVMe, `144D:A80A` |
+| Keyboard / touchpad | PS/2 / ELAN0788 I2C HID `04F3:321A` |
+| Wi-Fi / Bluetooth | MT7921 `14C3:7961` / IMC-USB `13D3:3567` (no firmware loader: BT unsupported) |
+| Ethernet / storage | RTL8111 `10EC:8168` / Samsung PM9A1 `144D:A80A` |
 
-## Current state
+## Current state (measured 2026-11-10, 21:00 boot)
 
-- **Intel acceleration works (branch `whateverxe-adl`, 2026-11-10).** Measured on the internal eDP
-  panel: `IntelAccelerator` 1, `AppleIntelFramebufferController` 1, `VRAM (Dynamic, Max)` 1536 MB,
-  `Metal 2`, panel `1920x1080 @ 144 Hz`, `N97FramebufferBackendReady Yes` — no longer the 7 MB
-  `IONDRVFramebuffer` fallback (report `report-20261110-101608`, utility drive). Stack: `MACEFI` carries a fresh
-  OpenCore-Simplify tree, WhateverXe **0.7.0 built by us** (`420fcb5a…`), **AMFIPass 1.4.1 Mod**
-  (byte-identical to WhateverXe-Graphics `extras/`) and WhateverXe Graphics **0.4.1** installed in
-  `/Library` + AuxKC. `csr-active-config=0x0A03` (the `0x200` bit covers the Mod-signed AuxKC
-  payloads). DVMT is fixed at 60 MB, so the iGPU carries `framebuffer-patch-enable` +
-  `framebuffer-stolenmem=0x3C00000` and **no** `device-id`/`AAPL,ig-platform-id` spoof; no
-  WhateverGreen.
-- **Boot-args:** `-v debug=0x100 keepsyms=1 -allow3d -disablegfxfirmware -igfxdvmt ctrsmt=full
-  -vi2c-force-polling -wex-edp-keep -wex-panel-fallback -wex-no-tc alcid=13 alcverbs=1`. Three are
-  still bring-up switches: `-wex-edp-keep` keeps the firmware-trained panel link,
-  `-wex-panel-fallback` enables the lenient VBT parse (duplicate DDI + duplicate internal child),
-  `-wex-no-tc` drops the unused Intel TC1..4 routes. `-wex-display-trace` is back on only while the
-  display glitches are being chased (it adds logging, nothing else); the three functional switches
-  each need their own boot test, `-wex-edp-keep` last — WEX #43 says removing it can leave the panel
-  dark. `alcverbs=1` is audio triage, not a permanent switch. **Never** add
-  `-wex-adlp-readout`/`-wex-adlp-load-only`: WEX turns either into an "ADL-P load-only" boot that
-  patches `probe`/`start` to reject both drivers.
-- **Why 0.7.0 and not 0.8.0:** WEX #68 reports 0.8.0 losing the framebuffer allocation on `46A6`
-  eDP (`FB0 has no memory allocated`). Our own patched 0.7.0 is the base; see the WhateverXe notes
-  in `REFERENCES.md` for the five changes it carries.
-- **Input / network:** VoodooPS2 (PS/2 keyboard) + VoodooI2C/VoodooI2CHID (ELAN0788), Wi-Fi
-  `AirportMtkWlan` 1.5.0 (MT7921), `BlueToolFixup` for third-party BT — no MT7921 firmware loader
-  exists, so Bluetooth stays unsupported.
-- **Tahoe 26.7.1** runs from the APFS partition; the picker waits for a key (`Timeout=0`) with
-  auxiliary entries visible.
-- **Working area stays on the exFAT utility drive.** `macUtility` (`/Volumes/macUtility` on macOS,
-  `/run/media/sulthonuladib/macUtility` on Linux) holds the WhateverXe artifacts, the CI zips, the
-  `collect.sh`/`props.sh`/`vbt.sh` triage scripts and their reports. Keep using it: if a later
-  change breaks the panel or the boot, the previous kext zip, the last good EFI state and the
-  collected registry/VBT dumps are all there, so a rollback needs no network and no guesswork.
-  Development continues from macOS on this branch; the ESP holds the deployed tree. Added
-  2026-11-10: `wex-gfx-state.sh` (WEX watermark/DBUF/clock + underrun count since boot),
-  `wex-glitchwatch.sh start|mark|stop` (kernel GPU log + display-link jitter around a glitch you
-  just saw), `audio-verbs.sh` + `tools/alc-verb` (ALC245 codec dump through AppleALC),
-  `bench/bench-cpu.sh` (same CPU benchmark on macOS and Linux), `bench/CPU-NOTES.md`,
-  `dgpu-off/` (validated SSDT to power off the RTX 3050) and `reports/` (research write-ups).
-- **Audio works (2026-11-10, `alcid=11`).** Tahoe does not ship `AppleHDA.kext`
-  (`/System/Library/Extensions/AppleHDA.kext` is absent on this 26.7.1), so AppleALC alone cannot
-  produce sound. The ESP carries **AppleALC 1.9.8** followed by **SimpleHDA 1.0.1** (a Lilu plugin
-  that injects the original Apple HDA stack — no root patch, no system-volume write, no AuxKC
-  rebuild) with `alcid=13`, the only HP layout AppleALC ships for ALC245. Measured: both plugins
-  load, `AppleHDAController`/`AppleHDADriver`/`AppleHDAEngineOutput` each 1, `Built-in Output` is
-  the default output (2 ch, Internal Speakers), the level controls sit at 87/87 and a 440 Hz tone
-  does start the engine (`IOAudioEngineState` 1) — **but nothing is audible**. So the kernel path
-  and CoreAudio are fine; the codec pin/amp path is not. Two facts worth keeping straight:
-  `layout-id` 7 on HDEF is Lilu's `DefaultReportedLayoutId` (what AppleALC reports to AppleHDA, not
-  the layout AppleALC picked); the applied layout is `alc-layout-id` = 13. Layout 13 drives
-  speaker pin `0x17` from DAC `0x03` and headphones `0x21` from DAC `0x02` — the Victus wiring is
-  unverified. The `SimpleHDA-HAL-1.0.1.pkg` bundle is installed at
-  `/Library/Audio/Plug-Ins/SimpleHDA/AppleHDAHALPlugIn.bundle` but SimpleHDA only detects it at
-  boot (`SimpleHDAHALMode` was still `not-installed` on the 2026-11-10 session), hence the
-  `alcverbs=1` (now in the boot-args). Next boot publishes AppleALC's
-  `ALCUserClientProvider`, so `macUtility/whateverxe/audio-verbs.sh` can dump every widget's
-  `config_default`, connection list, pin sense/EAPD and amp gain without a reboot loop; the plan is
-  to find the codec's real speaker pin instead of trusting a layout. That dump settled it: pin
-  `0x14` is the fixed internal speaker (BIOS default `0x90170110`, EAPD on) and its only source is
-  **DAC `0x02`**, `0x17` is a 4-way mux (`0x02/0x03/0x06/0x08`), `0x21` takes `0x02/0x03`, and the
-  pin amps are mute-only (`AMP_OUT_CAP` `0x80000000`, no gain). Layout 13 drives `0x17 <- DAC 0x03`
-  — a muted, un-enabled pin fed by an idle converter, which is exactly the silence. Of the three
-  layouts AppleALC ships for ALC245, **layout 11** is the only one whose speaker path is
-  `0x14 <- 0x02`, so the boot-args now say `alcid=11`. The reason the codec never made a sound is
-  one step up from that: with layout 13 the driver powers up **only** its own converter
-  (`GET_POWER_STATE` on `0x03` = D0 while playing, `0x02` and `0x14` stay **D3**) and D3 passes no
-  audio, so the real speaker path was powered down as well as muted. Forcing the AFG, both DACs and
-  the pins to D0 and re-asserting `0x14` unmuted/enabled made the codec's own beep generator
-  audible (measured 19:48, on the wire: `SET_POWER_STATE 0`, `SET_AMP_GAIN_MUTE 0xD07f`,
-  `SET_PIN_WIDGET_CONTROL 0x40`, `SET_EAPD_BTLENABLE 0x02`) — so the analog chain, speakers
-  included, is fine and only the path/power selection was wrong. Platforms11.xml carries Amp
-  configs on both `0x14` and `0x02`, so the driver unmutes and powers them itself once it selects
-  that path — confirmed by ear after the 20:44 boot: internal speakers play, `Built-in Output` is
-  the default device. At idle the driver parks the widgets back in D3 with `0x14` muted, which is
-  normal power management, not a fault. Microphone and headphone-jack switching are
-  not verified. Requires `Kernel > Quirks > DisableLinkeditJettison=true` (set).
-- **dGPU: powered but hidden (2026-11-10).** `SSDT-DGPU-POFF` (the `_INI` -> firmware `POFF()`
-  approach) **loads** — the boot log shows `SSDT ... (v02 HPQOEM DGPUOFF ...)` — but `POFF()` does
-  not finish on macOS: `01:00.0` still answers with real config space (`10de:25a2`, revision `a1`)
-  and the GPU keeps its D0. The HP firmware's `PSTA/_STA` only reports the device absent when its
-  GNVS `VDID` is `0xFFFFFFFF`, which never happens here. So the ESP now carries
-  `_STA = 0` on `PEGP` (no firmware `_STA` there, only on `PEG1`) **did not hide it either** — and
-  that is the lesson: macOS enumerates PCI functions from the bridge's hardware scan, so an ACPI
-  `_STA` returning 0 removes the ACPI node, not the PCI function. Measured on the 20:54 boot with
-  the table loaded and `\_SB.DGPO._INI` visibly executing: `01:00.0` still answered with real
-  config space. Only the hardware can make it disappear.
-  That is what the firmware `POFF()` is for, and it aborts: its **first** statement is
-  `\_SB.PC00.LPCB.EC0.GFXT = 0`, and in `_INI` the ACPI EC handler (AppleACPIEC) is not installed
-  yet, so the store fails with AE_NOT_EXIST and the method never reaches `\PIN.ON(RSTG)` or
-  `\PIN.OFF(PWRG)`. Those two are pure MMIO (`\PIN` -> `\_SB.SGOV`, a SystemMemory OperationRegion
-  on `PADCFG_DW0`), so they work at any time — the current ESP carries `SSDT-DGPU-POFF2.aml`, which
-  replays exactly that tail (PERST# assert, then the rail if `GPPR()==1`) with the firmware's own
-  pin numbers from GNVS, plus `PEGP._STA = 0`. Verify on the next boot with
-  `lspci -s 01:00.0` (absent or `ffffffff`) and `ioreg -l | grep -c 25a2` (0).
-- **Display off does not come back (2026-11-10, on the pre-WM-fix kext).** With `displaysleep 10`
-  the panel blanked at 18:56 and never returned; the logs show a pipe-A underrun at 18:56:03 and
-  then 12208 `WindowServer ... [com.apple.CoreDisplay] [ERROR] - Fallback GPU Display Pipe
-  transaction submission failed` / `Transaction Target State` / `DisplaySurface Size: (1920x1080)`
-  in 16 minutes until the machine was force-powered-off. The first boot on the WM fix (19:15) has
-  **0 underruns and 0 CoreDisplay errors**, but display-off/on has not been exercised on it yet.
-  Until it is, `pmset displaysleep 0` keeps the panel on (sleep was already 0). If the fix does not
-  cover it, the known workarounds for this class are `-nodisplaysleepDC6 -noDC9 dc6config=0`
-  ([#63](https://github.com/b00t0x/WhateverXe/issues/63)).
-- **Unverified:** brightness keys, sleep/wake (WEX calls sleep experimental), long-run
-  stability under load (WEX #42/#50 on `46A6`), and external outputs from the iGPU (HDMI is wired
-  to the NVIDIA dGPU on this laptop).
+- **Internal panel accelerated**: `IntelAccelerator` 1, `AppleIntelFramebufferController` 1, VRAM
+  `1536 MB` dynamic, **Metal 2**, 1920x1080 @ 144 Hz on the firmware-trained HBR x4 eDP link.
+- **Audio works**: internal speakers, `Built-in Output` default, 2 ch. ALC245 layout **11**
+  (`0x14 <- DAC 0x02`), `alcid=11`.
+- **dGPU off**: `SSDT-DGPU-POFF2` asserts PERST# and drops the rail at `_INI`; `01:00.0` is gone
+  from `lspci`, `ioreg` has no `10de:25a2`, System Information shows Intel only.
+- **Display-pipe underruns**: the `clockFits()` fix (below) is deployed and the WM certificate now
+  latches (`N97FBWMLatch`/`N97FBDBUFLayout` = *Complete*, failure records absent). Earlier boots
+  produced up to 2491 `Display Pipe Underrun occurred on pipe(s) A` events per boot and a
+  display-off black screen; re-measure with `wex-gfx-state.sh`.
+- **Input / network**: VoodooPS2 keyboard, VoodooI2C/VoodooI2CHID touchpad, `AirportMtkWlan` 1.5.0
+  for Wi-Fi. Bluetooth has no MT7921 firmware loader, so `BlueToolFixup` is present but BT is not
+  expected to work.
+- **CPU**: XCPM on, P-state table to 4700 MHz, no thermal clamp; measured peak 3646 MHz on one
+  thread and 2.5 GHz system average across 20 threads — the top turbo bins are unused (see CPU).
+- **Not verified**: sleep/wake, display off/on, brightness keys, long-run stability, microphone
+  and headphone-jack switching.
 
-- **Not installed on this install:** no NullMoth/1401 NVIDIA driver, no WhateverGreen, no
-  XeGfx, no XPS stack. This is a scratch Tahoe install whose only graphics stack is WhateverXe,
-  and it needs `IONDRVSupport` and no spoof. The NVIDIA and XeGfx history lives on `master`.
-- **Display: underruns, traced to a WEX certificate bug (2026-11-10).** What the user sees as
-  flicker/lag is measurable: `[IGFB][ERROR][DISPLAY] Display Pipe Underrun occurred on pipe(s) A`
-  2491 times in one 59-minute boot, in bursts (one minute alone had 1228) with `DBUF Pipe A
-  Plane 0` holding the whole bank (`start 40 end 1023 size 984`). The kernel side checks out: the
-  panel link is 4 lanes at **HBR** (0x0A) with 342.06 MHz pixel clock = **95 %** of HBR×4, CDCLK is
-  the firmware's **179.2 MHz**, and WEX never programs the watermarks itself. Root cause found in
-  `WhateverXe/kern_display13_wm.hpp:289`: `clockFits()` compares the plane pixel rate against
-  `nativeHz/2`, but `nativeHz` is already **2×CDCLK** by the donor ABI, so it demanded
-  `pixelHz <= CDCLK` — twice as strict as gen12, where i915's `intel_pixel_rate_to_cdclk()` divides
-  by 2. 342.06 MHz against 179.2 MHz therefore failed, which latched `watermarkFaulted`/
-  `dbuf.faulted` and froze `wmPending` for the session (`N97FBPrimaryWMProgram` = *Unavailable*,
-  `N97FBWMLatch` = *Input*), blocking watermark retirement and any later DBUF/clock re-layout.
-  Branch `gfx-wm-fix` carries the corrected comparison plus its unit test (CI run 42809313867,
-  binary `4cd2f40e…`); it is deployed and waiting for a boot test. Metal support is **Metal 2**.
-- **Metal 3: the flag is a 2-byte patch, the features are the work (2026-11-10).** `Metal3` is one
-  instruction in `AppleIntelTGLGraphicsMTLDriver`: `movq $0x2711` at file offset `0x22953`, and that
-  immediate is the only `0x2711` in the binary (`0x22957`). Patching those two bytes to `0x2712`,
-  re-signing ad-hoc and reloading makes the device report `Metal3 = yes` — measured with a plain CLI
-  process loading the bundle, so AMFIPass already covers the signature side. What the flip does not
-  buy, measured with it on: `libraryTypeDynamic` compiles, `[[mesh]]`/`[[object]]` shader functions
-  compile, but **mesh pipeline creation fails inside our own compiler layer** — `Xe compiler
-  unsupported serialized request` from `XeCompilerAdapter.bundle/.../adapter.dylib` — and binary
-  archives still report `no target architecture`. Ray tracing is absent because Xe-LP has no RT
-  units. So the remaining Metal 3 work is two own-layer jobs, not an Apple one: teach the adapter the
-  mesh serialized request (its source is unpublished, so that is RE work on the request dispatch),
-  and give the plugin a target architecture/archive implementation. Until then the flag stays off
-  (`/Volumes/macUtility/whateverxe/mtl3-backup/restore-stock.sh`), because a Metal 3-flagged device
-  sends apps down paths the driver cannot finish. Upstream #69 wants exactly these numbers.
-- **CPU:** XCPM via `SSDT-PLUG-ALT` (`plugin-type` `C000`), `ProvideCurrentCpuInfo` true and
-  CpuTopologyRebuild enabled. OpCore-Simplify spoofs CPUID leaf 1 to Comet Lake (`0x0A5`); that is
-  cosmetic for the chip name. RestrictEvents keeps `revpatch=sbvmm,cpuname` + `revcpu=1` with
-  `revcpuname` in NVRAM. The **2.68 GHz** in About This Mac is the nominal value macOS publishes
-  (`hw.cpufrequency` = min = max), not a cap: XCPM lists P-states to **4700 MHz**
-  (`CPUPStates`, `hard_plimit_max_100mhz_ratio` 47) and `pmset -g therm` reports no clamp. Measured
-  2026-11-10 with `powermetrics`: 3646 MHz peak on one busy thread, 3494 MHz with six, 2.5 GHz
-  system average on all 20 threads — i.e. the top turbo bins (3.7–4.7 GHz) are never used, which is
-  the open CPU-PM question (`bench/CPU-NOTES.md`).
-- **Wi-Fi:** `AirportMtkWlan` 1.5.0 (MT7921, kernel 25.x builds only) enabled; not yet verified at
-  runtime on this install. Bluetooth (`13D3:3567`) has no macOS firmware loader — `MtkBt` matches
-  MT7925 ids only — so `BlueToolFixup` is present but BT is not expected to work.
-- **Audio / sleep / brightness:** not verified; WEX calls sleep/wake experimental.
+## Versions and local patches
 
-## EFI
+| Piece | Version | Notes |
+|---|---|---|
+| OpenCore | 1.0.8 | config validates with the 1.0.8 `ocvalidate`; 5 drivers, 12 ACPI tables, 30 kexts |
+| WhateverXe (kext) | **0.7.0, our build** | binary `4cd2f40e…`, CI run 42809313867; deployed in `EFI/OC/Kexts/WhateverXe.kext` |
+| WEX source | fork `sulthonuladib/WhateverXe`, branches `adlp-panel-route` + `wm-cdclk-half` | see "Patches we carry" |
+| WhateverXe Graphics | 0.4.1 | installs `AppleIntelTGLGraphics*` 16.0.32 + `AppleIntelTGLCompat` 0.8.0 into `/Library` + AuxKC, and the 16.0.32 GPU bundles into `/Library/GPUBundles` |
+| AMFIPass | 1.4.1 **Mod** | from WhateverXe-Graphics `extras/`; never load it together with upstream AMFIPass |
+| AppleALC / SimpleHDA | 1.9.8 / 1.0.1 | order Lilu -> AppleALC -> SimpleHDA; `alcid=11`; SimpleHDA-HAL pkg installed |
+| Lilu | 1.7.x | required by AppleALC, SimpleHDA, WEX, AirportMtkWlan |
+| SIP | `csr-active-config=0x0A03` | the `0x200` bit covers the Mod-signed AuxKC payloads |
+| DVMT | 60 MB (fixed by firmware) | iGPU keeps `framebuffer-patch-enable` + `framebuffer-stolenmem=0x03C00000`, no spoof |
 
-- `EFI/` is the single source; git history is the rollback. Deploy with `tools/deploy-efi.sh`;
-  never hand-edit the ESP.
-- This branch's `EFI/` **is** the ESP tree: 28 enabled kexts (WhateverXe + AMFIPass Mod +
-  VoodooPS2/I2C + AirportMtkWlan + BlueToolFixup), 11 SSDTs, 5 drivers, 0 tools. It keeps the
-  OpenCore-Simplify defaults (`PickerMode=External` with OpenCanopy, `Timeout=0`,
-  `HideAuxiliary=false`, `ScanPolicy=0`) and has no `Kernel/Block`, so `IONDRVSupport` loads —
-  required by WhateverXe. The NVIDIA stack has no EFI presence here at all.
-- The private identity stays only in the deployed config and the git-ignored
-  `EFI/OC/identity.plist`; the committed config keeps `REPLACEME…` placeholders. Re-capture with
-  `tools/deploy-efi.sh --capture` after any identity change.
-- The 1401-era pieces on `master` (NullMothSafe tools, `IONDRVSupport` exclusion, `gfxrst=4`,
-  `nvfb*`/`nvaccel*` boot-args, `csr-active-config=0x0A53`) do **not** exist on this branch.
-  Rolling back to NVIDIA means switching back to `master` and redeploying from it.
-- **Do not run `tools/deploy-efi.sh` from an unsynced tree.** It uses `rsync --delete`.
-- Matching `ocvalidate` lives in `.downloads/ocvalidate-macos/` (macOS, from the OpenCore 1.0.8
-  RELEASE zip — the newest release, and the one our config validates against) and
-  `.downloads/ocvalidate-linux/` (when running the script from Omarchy); the script picks the host's
-  build. `--check` ignores `EFI/OC/identity.plist`, which is git-ignored and never deployed.
-- `tools/deploy-efi.sh` runs on both sides: `findmnt` on Linux, `mount`/`df` on macOS, where the
-  target is `/Volumes/MACEFI`. It still refuses non-FAT32 volumes and the volume holding the running
-  system, and it is the only supported way to write the ESP.
-## Next: WhateverXe on Alder Lake-P
+Boot-args today:
 
-Install order: EFI first (done on the ESP), then the WhateverXe Graphics pkg, then a restart so
-AuxKC rebuilds. The pkg installs under `/Library` and never touches the EFI or SIP. Graphics
-`0.4.1` is the match for WEX `0.8.0`; both must be updated together. Full disk access for the
-installer is not needed, root is.
+```
+-v debug=0x100 keepsyms=1 -allow3d -disablegfxfirmware -igfxdvmt ctrsmt=full -vi2c-force-polling
+-wex-display-trace -wex-edp-keep -wex-panel-fallback -wex-no-tc alcid=11 alcverbs=1
+```
 
-Known Alder Lake-P (`46A6`) trouble in upstream, from the WEX issue tracker:
+- `-wex-edp-keep`: keep the firmware-trained panel link (removing it retrains and is documented to
+  leave ADL-P/TGL panels dark — #43).
+- `-wex-panel-fallback`: lenient VBT parse (duplicate DDI, duplicate internal child, lowest internal
+  DDI). `-wex-no-tc`: drop the unused TC1..4 routes so `wrapDisplay13FramebufferStart()` stops
+  refusing with `ADLPFBTCUnavailable`.
+- `-wex-display-trace`: logging only, kept while display issues are being chased.
+- `alcverbs=1`: publishes AppleALC's `ALCUserClientProvider` so `alc-verb` can read the codec.
+- **Never** add `-wex-adlp-readout`/`-wex-adlp-load-only`: WEX turns either into an "ADL-P load-only"
+  boot that patches `probe`/`start` to reject both drivers.
 
-- [#68](https://github.com/b00t0x/WhateverXe/issues/68) — an **0.8.0 regression on 46A6 eDP**
-  loses acceleration (`FB0: FB has no memory allocated`). The reporter shows 0.7.0 kext +
-  Graphics 0.4.1 working on the same macOS build we run. Keep `WhateverXe-0.7.0-RELEASE.zip`
-  as the rollback kext.
-- [#43](https://github.com/b00t0x/WhateverXe/issues/43) — the eDP link the firmware trained is
-  torn down and retrained, and the panel stays dark on several Alder Lake laptops. The opt-in
-  `-wex-edp-keep` lives only on the `nickk19/WhateverXe` fork (branch `display13-edp-keep-080`);
-  neither 0.7.0 nor 0.8.0 main knows that argument.
-- [#57](https://github.com/b00t0x/WhateverXe/issues/57) — the 60 MB stolen-memory path is exactly
-  the one the README prescribes for our DVMT setting; nothing else to do there on bare metal.
-- [#42](https://github.com/b00t0x/WhateverXe/issues/42), [#50](https://github.com/b00t0x/WhateverXe/issues/50)
-  — freezes and eDP link loss under load on 46A6; treat long-run stability as unproven.
+### Patches we carry in WEX
 
-The usable debug switches in the 0.8.0 binary are `-wexdbg`, `-wexoff`, `-wex-noaccel`,
-`-wex-adlp-load-only`, `-wex-adlp-readout`, `-wex-display-trace`, `-wex-display13-trace` and the
-`-wex-adln-*` stage probes; there is no `-wex-edp-keep`.
+Upstream 0.8.0 loses the framebuffer allocation on `46A6` eDP ([#68](https://github.com/b00t0x/WhateverXe/issues/68)),
+so the base is 0.7.0 plus the nickk19 `display13-edp-keep` handoff work, and on top of that:
 
-## Next: XeGfx on Alder Lake
+1. `Display13: treat VBT panel type 0xFF as panel type 0` — our VBT block 40 says "select by EDID".
+2. `Adopt the BDB-advertised internal eDP DDI when the LFP facts are unusable`, plus
+   `Make the panel-route fallback opt-in` and `take the lowest internal DP DDI, not a unique one`.
+3. `ADL-P eDP bring-up: the #35 blockers plus the TC-gate fix` (CDCLK controller gate on the first
+   FB0 modeset; TC1..4 routes dropped).
+4. **`clockFits()` compares against 2xCDCLK, not CDCLK.** `nativeHz` is twice the Linux CDCLK by
+   the donor ABI, and gen12 emits two pixels per CDCLK (`intel_pixel_rate_to_cdclk()` divides by 2
+   for `DISPLAY_VER>=10`). The old test demanded `pixelHz <= CDCLK`, so our 342.06 MHz eDP pixel
+   clock on 179.2 MHz CDCLK was declared impossible, which latched `watermarkFaulted`/`dbuf.faulted`
+   and froze `wmPending` for the session — the watermark retirement path and every later DBUF/clock
+   re-layout stayed blocked. Fixed in `kern_display13_wm.hpp` with its unit test
+   (`tests/display13_wm.cpp`).
 
-The ESP already boots the `nmintelfb` config; `master` keeps the fallback as rollback. The macOS
-build sequence, prerequisites, staged sources and troubleshooting live on the utility drive:
-`scripts/xegfx/RUNBOOK.md`, driven by `xegfx-run.sh kernel | probe | metal`. Nothing needs
-cloning there: 331 MB of pinned sources and the GuC firmware are staged.
+Building WEX: there is no full Xcode on this machine, so builds go through the fork's
+`.github/workflows/ci.yml` (`macos-15-intel`, RELEASE artifact) — see "Reproducing the install".
 
-Local addition over upstream v0.0.47: `adlp_guc_70.bin` (GuC v70.49.4 from linux-firmware, whose
-i915 blobs now live under `i915/`) is embedded and copied into `Resources/` by a patch to
-`tools/link.sh` (`xegfx-patch-guc.sh`). Upstream does not do this, and without it stage 4 has no
-GuC on `46A6`. The Metal plugin and translator also need our install step; upstream's
-`tools/install.sh` does not place them in `/Library/GPUBundles/NVMTLDriver.bundle`.
+### ACPI tables we add
 
-Order: Phase A kernel → reboot → load → stages 1-3, then 4 with `--yes`; Phase B builds the
-accelerator/AGDC/framebuffers + plugin/translator + libdrm/Mesa ANV → install → reboot → stage 4
-→ desktop handover. Report results to WTLIntelGfx #3. Scanout is still a copy into the firmware
-framebuffer (zero-copy flip is on upstream's `xe-zerocopy-flip` branch); do not make XeGfx the
-default until the panel is proven.
+`SSDT-ALS0`, `SSDT-SBUS`, `SSDT-EC`, `SSDT-GPI0`, `SSDT-MCHC`, `SSDT-PLUG-ALT` (`plugin-type`
+`C000`), `SSDT-PNLF`, `SSDT-RTCAWAC`, `SSDT-USB-Reset`, `SSDT-USBX`, `SSDT-XOSI`, and
+**`SSDT-DGPU-POFF2`**.
 
-After a stage-4 panic, boot normally and run
-`sudo bash /Volumes/macUtility/scripts/xegfx/xegfx-collect-panic.sh`. It collects the panic,
-probe, bootdump, build and EFI evidence into
-`/Volumes/macUtility/xegfx-state/reports/<stamp>/`, updates `xegfx-state/STATE.txt`, writes a
-redacted `REPORT-DRAFT.md`, and does not upload anything. For the next stage-4 attempt, use
-`xegfx-stage4-trace.sh --yes` so the watchdog breadcrumb lands in NVRAM. Review the redacted
-report before attaching it; `raw/` is local-only. The one-page macOS run note is
-`/Volumes/macUtility/README.md`.
+`SSDT-DGPU-POFF2` replays the MMIO tail of the firmware's own `\_SB.PC00.PEG1.POFF()`
+(`\PIN.ON(RSTG)` to assert PERST#, then `\PIN.OFF(PWRG)` to drop the rail when `GPPR()==1`) from
+`_INI`, using the firmware's GNVS pin numbers, and sets `\_SB.PC00.PEG1.PEGP._STA = 0`. Two things
+were learned the hard way and are worth not re-learning:
 
-Hardware evidence is in `scan/`. Local downloads, identities, candidates and backups are
-git-ignored. macOS-side tooling for the XeGfx bring-up (staged sources, GuC firmware, build, install,
-probe) is on the utility drive under `scripts/xegfx/` — `/Volumes/macUtility/` on macOS,
-`/run/media/sulthonuladib/macUtility/` from Linux; start with `RUNBOOK.md`. See
-[references and attribution](REFERENCES.md) and [agent rules](AGENTS.md).
+- the firmware `POFF()` **aborts** when called from `_INI`: its first statement writes
+  `\_SB.PC00.LPCB.EC0.GFXT`, and the ACPI EC handler is not installed that early (`AE_NOT_EXIST`), so
+  it never reaches the GPIO calls. `\PIN` -> `\_SB.SGOV` is a `SystemMemory` OperationRegion write to
+  `PADCFG_DW0`, i.e. pure MMIO, and works at any time.
+- `_STA = 0` alone does **not** hide a PCI function: macOS enumerates from the bridge's hardware
+  scan. Measured with the table loaded and its `_INI` visibly running: `01:00.0` still answered.
+  Only PERST#/rail removal makes the device disappear.
+
+## Reproducing the install
+
+### 1. EFI
+
+`EFI/` is the single source and git history is the rollback; never hand-edit the ESP.
+
+```sh
+tools/deploy-efi.sh              # validate EFI/, rsync to MACEFI, splice the private identity
+tools/deploy-efi.sh --check      # read-only: is the ESP EFI/ plus only the identity?
+tools/deploy-efi.sh --capture    # read identity from the ESP into EFI/OC/identity.plist (git-ignored)
+```
+
+It runs on both sides: `findmnt` on Linux, `mount`/`df` on macOS (`/Volumes/MACEFI`). It refuses
+non-FAT32 targets and the volume holding the running system, and uses `rsync --delete`, so do not run
+it from an unsynced tree. `ocvalidate` must match the ESP's OpenCore version and is host-specific:
+`.downloads/ocvalidate-macos/` (1.0.8, from the OpenCore RELEASE zip) and
+`.downloads/ocvalidate-linux/`; the script picks by `uname -s`.
+
+The identity (serial, MLB, ROM, UUID) lives only in the deployed `config.plist` and the git-ignored
+`EFI/OC/identity.plist`; the committed config keeps `REPLACEME…` placeholders.
+
+### 2. WhateverXe kext (CI build)
+
+```sh
+cd .references/WhateverXe                  # clone of sulthonuladib/WhateverXe, or any checkout
+git checkout adlp-panel-route             # panel routing; wm-cdclk-half adds the WM fix
+gh workflow run ci.yml --ref <branch> -R sulthonuladib/WhateverXe
+gh run watch <run-id> -R sulthonuladib/WhateverXe --exit-status
+gh run download <run-id> -R sulthonuladib/WhateverXe -n Artifacts -D /tmp/wex-art
+unzip -q /tmp/wex-art/WhateverXe-0.7.0-RELEASE.zip -d /tmp/wex-rel
+# replace EFI/OC/Kexts/WhateverXe.kext with /tmp/wex-rel/WhateverXe.kext, commit, deploy, reboot
+```
+
+Keep WEX and WhateverXe Graphics **version-paired** (0.7.0 / 0.4.1 today). Record the binary hash
+(`shasum -a 256 WhateverXe.kext/Contents/MacOS/WhateverXe`) in the commit message; the deployed
+build is `4cd2f40e…`.
+
+### 3. WhateverXe Graphics (user space)
+
+```sh
+sudo installer -pkg WhateverXe-Graphics-0.4.1.pkg -target /     # rebuilds AuxKC
+```
+
+It installs `AppleIntelTGLGraphics.kext`, `…Framebuffer.kext`, `AppleIntelTGLCompat.kext` into
+`/Library/Extensions`, the Metal/GL/VA bundles plus `XeCompilerAdapter` into `/Library/GPUBundles`,
+and rebuilds `AuxiliaryKernelExtensions.kc`. The driver bundles are Apple's **16.0.32** (Big Sur
+era) — that is why Metal is Metal 2 and why Metal 3 needs work (below). Backup before any experiment:
+`/Volumes/macUtility/whateverxe/mtl3-backup/`.
+
+### 4. Audio
+
+Order matters: **Lilu → AppleALC 1.9.8 → SimpleHDA 1.0.1**, `Kernel > Quirks > DisableLinkeditJettison
+= true`, `alcid=11`. Tahoe ships no `AppleHDA.kext`; SimpleHDA injects Apple's HDA stack so AppleALC
+can apply a layout. Optionally install `SimpleHDA-HAL-1.0.1.pkg` (`/Library/Audio/Plug-Ins/SimpleHDA`).
+`alcid=11` is the only shipped ALC245 layout whose speaker path is `0x14 <- DAC 0x02`, which is what
+this codec exposes (`0x17` is a 4-way mux, pin amps are mute-only, `AMP_OUT_CAP 0x80000000`).
+
+### 5. Post-install verification (utility drive)
+
+```sh
+sudo bash /Volumes/macUtility/whateverxe/wex-gfx-state.sh   # WM/DBUF status + underruns since boot
+sudo bash /Volumes/macUtility/whateverxe/audio-verbs.sh     # ALC245 widget/pin/amp dump via alc-verb
+sudo bash /Volumes/macUtility/whateverxe/props.sh           # WEX preflight registry properties
+sudo bash /Volumes/macUtility/whateverxe/wex-glitchwatch.sh start   # then `mark` at a visible glitch
+ioreg -l | grep -c 25a2                                     # must be 0 (dGPU gone)
+bash /Volumes/macUtility/whateverxe/bench/bench-cpu.sh      # same CPU bench as on the Linux side
+```
+
+## Known issues and next work
+
+- **Metal 3**: the family flag is a 2-byte patch in `AppleIntelTGLGraphicsMTLDriver`
+  (`movq $0x2711` at offset `0x22953`, immediate at `0x22957`, the only `0x2711` in the binary).
+  Patching it to `0x2712` + ad-hoc re-signing makes the device report `Metal3 = yes` (measured), and
+  `libraryTypeDynamic` and `[[mesh]]`/`[[object]]` compilation still work — but **mesh pipeline
+  creation fails in our own layer** (`Xe compiler unsupported serialized request` from
+  `XeCompilerAdapter/…/adapter.dylib`) and binary archives say `no target architecture`. Ray tracing
+  is absent because Xe-LP has no RT units. The flag is kept **off**: a Metal 3-flagged device sends
+  apps down paths the driver cannot finish. `mtl3-backup/restore-stock.sh` restores the stock bundle;
+  `install-metal3.sh` re-applies the experiment. Next step there is RE of the adapter's request
+  dispatch, then the archive/target-architecture layer.
+- **Display off/on** is unproven. With the pre-fix kext a display-off ended in thousands of
+  `WindowServer … Fallback GPU Display Pipe transaction submission failed` lines and a dead panel, so
+  `pmset displaysleep 0` is set until wake is tested on the current kext.
+- **CPU turbo**: `About This Mac` shows 2.68 GHz because macOS publishes that nominal
+  (`hw.cpufrequency` = min = max); XCPM itself lists P-states to 4700 MHz and `pmset -g therm` shows
+  no clamp. Measured peaks are 3646 MHz (1 thread) / 3494 MHz (6) / 2.5 GHz average (20 threads), so
+  the top bins are unused. The promising lead is **XE-PM** from the XPS/IrisXe stack (hybrid HWP
+  rescale in ~78.7 MHz units, EPP, C8/C10) — +33 % single-core there, patched against our exact
+  build; see [REFERENCES.md](REFERENCES.md).
+- **Stability**: WEX freezes and eDP link loss under load are open upstream (#42/#50); treat long-run
+  stability as unproven.
+
+## Where the working material lives
+
+`macUtility` — `/Volumes/macUtility` on macOS, `/run/media/sulthonuladib/macUtility` on Linux:
+
+| Path | What |
+|---|---|
+| `WhateverXe-*.zip`, `WhateverXe-Graphics-*.pkg`, `SimpleHDA-*.zip`, `AppleALC-*.zip` | pinned payloads |
+| `props.sh`, `collect.sh`, `vbt.sh`, `audio-check.sh` | original triage scripts |
+| `audio-verbs.sh` + `tools/alc-verb` | codec dump/verbs through AppleALC |
+| `wex-gfx-state.sh`, `wex-glitchwatch.sh`, `tools/jitter` | WEX/watermark/underrun state, glitch capture |
+| `bench/bench-cpu.sh`, `bench/CPU-NOTES.md` | CPU benchmark shared with the Linux side + findings |
+| `dgpu-off/` | dGPU research: DSDT/SSDT disassembly, `iasl`/`acpiexec`, the SSDT variants |
+| `mtl3-backup/` | stock + Metal 3-flagged MTL bundles, probes, install/restore scripts |
+| `reports/` | research write-ups (WEX display/glitch research, Metal 3 feasibility) |
+| `tools/iasl`, `tools/acpiexec` | ACPICA built locally (no Homebrew) |
+
+Reference sources are read-only checkouts under `.references/` (git-ignored): `AppleALC` 1.9.8 and
+our `WhateverXe` fork. `~/personal/OpCore-Simplify/` is the EFI generator this install came from.
+
+## Next: XeGfx on Alder Lake (master branch)
+
+The XeGfx (`WTLIntelGfx`) path — Linux i915 on XNU with a NullMoth-derived Metal accelerator — is the
+long-term goal for real Intel acceleration and lives on `master` with its own runbooks
+(`scripts/xegfx/` on the utility drive). It needs the real `46A6`, `IONDRVSupport` present, no
+WhateverGreen, and no spoof. Alder Lake is probe-only until `adlp_guc_70.bin` (GuC v70.49.4) is
+linked. See [REFERENCES.md](REFERENCES.md).
