@@ -35,20 +35,39 @@ done
 [ -f "$SRC/OC/OpenCore.efi" ] || die "$SRC/OC/OpenCore.efi is missing - the ESP would not boot."
 
 # ---- the target: the vfat volume labelled MACEFI, never the Omarchy ESP -----
+# Runs from the Omarchy/Linux side (findmnt) or from macOS (mount, /Volumes/MACEFI).
 if [ -z "$TARGET" ]; then
-  TARGET=$(findmnt -rno TARGET,LABEL | awk '$2=="MACEFI"{print $1; exit}')
+  if command -v findmnt >/dev/null 2>&1; then
+    TARGET=$(findmnt -rno TARGET,LABEL | awk '$2=="MACEFI"{print $1; exit}')
+  else
+    TARGET=/Volumes/MACEFI
+  fi
 fi
 [ -n "$TARGET" ] || die "MACEFI is not mounted. Mount it, or pass --target=<mountpoint>."
 [ -d "$TARGET" ] || die "$TARGET is not a directory."
 
-read -r TGT_SRC TGT_TYPE <<<"$(findmnt -rno SOURCE,FSTYPE --target "$TARGET")"
-BOOT_SRC=$(findmnt -rno SOURCE --target /boot 2>/dev/null || true)
-ROOT_SRC=$(findmnt -rno SOURCE --target / 2>/dev/null || true)
-[ "${TGT_TYPE:-}" = "vfat" ] || die "$TARGET is ${TGT_TYPE:-unknown}, not vfat - refusing to write."
-[ "${TGT_SRC:-}" != "${BOOT_SRC:-}" ] || die "$TARGET is the Omarchy ESP ($BOOT_SRC) - refusing."
-case "${TGT_SRC:-}" in
-  "${ROOT_SRC:-/nonexistent}"|"/dev/mapper/"*) die "$TARGET holds this Linux system - refusing." ;;
-esac
+if command -v findmnt >/dev/null 2>&1; then
+  read -r TGT_SRC TGT_TYPE <<<"$(findmnt -rno SOURCE,FSTYPE --target "$TARGET")"
+  BOOT_SRC=$(findmnt -rno SOURCE --target /boot 2>/dev/null || true)
+  ROOT_SRC=$(findmnt -rno SOURCE --target / 2>/dev/null || true)
+  [ "${TGT_TYPE:-}" = "vfat" ] || die "$TARGET is ${TGT_TYPE:-unknown}, not vfat - refusing to write."
+  [ "${TGT_SRC:-}" != "${BOOT_SRC:-}" ] || die "$TARGET is the Omarchy ESP ($BOOT_SRC) - refusing."
+  case "${TGT_SRC:-}" in
+    "${ROOT_SRC:-/nonexistent}"|"/dev/mapper/"*) die "$TARGET holds this Linux system - refusing." ;;
+  esac
+else
+  # macOS: "msdos" is FAT32 here, and df(1) finds the volume holding this system.
+  mnt=$(mount | awk -v t="$TARGET" 'index($0, " on " t " "){print; exit}')
+  [ -n "$mnt" ] || die "$TARGET is not a mounted volume."
+  TGT_SRC=$(printf '%s\n' "$mnt" | awk '{print $1}')
+  TGT_TYPE=$(printf '%s\n' "$mnt" | sed -n 's/.*(\([a-z0-9]*\).*/\1/p')
+  ROOT_SRC=$(df / | awk 'NR==2{print $1}')
+  case "$TGT_TYPE" in
+    msdos|vfat) ;;
+    *) die "$TARGET is ${TGT_TYPE:-unknown}, not FAT32 - refusing to write." ;;
+  esac
+  [ "${TGT_SRC:-}" != "${ROOT_SRC:-}" ] || die "$TARGET holds this macOS system ($ROOT_SRC) - refusing."
+fi
 CONF=$TARGET/EFI/OC/config.plist
 if [ -f "$TARGET/EFI/OC/OpenCore.efi" ] && [ ! -f "$CONF" ]; then
   die "$TARGET/EFI/OC has an OpenCore but no config.plist - inspect it by hand first."
@@ -56,11 +75,18 @@ fi
 say "   target $TARGET ($TGT_SRC, $TGT_TYPE)"
 
 # ---- ocvalidate ------------------------------------------------------------
+# ocvalidate must match the OpenCore version on the ESP; the binary is host-specific (Linux ELF vs
+# macOS Mach-O), so keep each build in its own directory: .downloads/ocvalidate-{macos,linux}/
+case "$(uname -s)" in
+  Darwin) OC_HOST=ocvalidate-macos ;;
+  *)      OC_HOST=ocvalidate-linux ;;
+esac
 OCVALIDATE=$(command -v ocvalidate 2>/dev/null || true)
 if [ -z "$OCVALIDATE" ]; then
-  OCVALIDATE=$(find "$ROOT/.downloads" "$ROOT/tools" -maxdepth 4 -type f -name 'ocvalidate*' -perm -u+x 2>/dev/null | head -1 || true)
+  OCVALIDATE=$(find "$ROOT/.downloads/$OC_HOST" "$ROOT/.downloads" "$ROOT/tools" -maxdepth 4 \
+    -type f -name ocvalidate -perm -u+x 2>/dev/null | head -1 || true)
 fi
-[ -n "$OCVALIDATE" ] || die "no ocvalidate binary found (put one in tools/ or .downloads/)."
+[ -n "$OCVALIDATE" ] || die "no $OC_HOST ocvalidate found (put one in .downloads/$OC_HOST/ocvalidate)."
 
 validate() { # $1 = config path
   local out rc=0
