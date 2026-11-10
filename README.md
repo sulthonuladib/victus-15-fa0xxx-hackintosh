@@ -249,6 +249,18 @@ bash /Volumes/macUtility/whateverxe/bench/bench-cpu.sh      # same CPU bench as 
   `os_log`. Adapter restored (`8cb3b4f2`, verified). Next step for mesh is therefore bounded and
   concrete: reconstruct the five signatures from the disassembly (each prologue is short), then the
   graft becomes the place to dump the serialized mesh request and, later, translate it.
+  **Update, same night:** the signatures are now measured — `MTLCompilerBuildRequestWithSerializedBitcode`
+  and `XeBuildUntranslated` both take **13 arguments** (6 registers + 7 at `rbp+0x10…0x40`), the other
+  three take one pointer; `MTLCompilerCreate` gets a struct whose first word is version `0x21` and
+  returns a `0x160`-byte context, and it calls `dladdr` on its own symbol (that is an identity/hash
+  input). The service sandbox **blocks `open()` of a sibling dylib** in the bundle directory but reads
+  `/System/Library/Caches` fine, so the original can live there for a graft. With that in place the
+  graft loads, forwards and logs a real build request — and the mesh error **changes** from
+  `unsupported serialized request` to **`Xe compiler backend hash mismatch`**, i.e. the request now
+  reaches a compile stage and the next obstacle is the plugin's self-identity hash, which our graft
+  perturbs by replacing the file it hashes. Two ways past it: patch the original adapter in place
+  (identity unchanged, needs a code cave for the logger) or reproduce the hash input inside the graft.
+  Adapter restored and verified (`8cb3b4f2`) after every experiment.
 - **Older note, superseded**: the archive gate was first attributed to Metal.framework. The device *does* answer
   `-architecture` and returns an `MTLArchitecture` object, but its `name` is `Unknown` and
   `cpuType`/`cpuSubtype`/`revision` are scalar returns we could not resolve through
