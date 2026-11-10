@@ -127,10 +127,21 @@ no longer the target.
   `dbuf.faulted` and froze `wmPending` for the session (`N97FBPrimaryWMProgram` = *Unavailable*,
   `N97FBWMLatch` = *Input*), blocking watermark retirement and any later DBUF/clock re-layout.
   Branch `gfx-wm-fix` carries the corrected comparison plus its unit test (CI run 42809313867,
-  binary `4cd2f40e…`); it is deployed and waiting for a boot test. Metal support is **Metal 2**;
-  Metal 3 is not reachable from WEX — the driver reports `mac2 = true, metal3 = false`, and the
-  plugins fail with "This legacy driver has no target architecture", so it needs a different
-  `AppleIntelTGLGraphicsMTLDriver`, not a kext change ([#69](https://github.com/b00t0x/WhateverXe/issues/69)).
+  binary `4cd2f40e…`); it is deployed and waiting for a boot test. Metal support is **Metal 2**.
+- **Metal 3: the flag is a 2-byte patch, the features are the work (2026-11-10).** `Metal3` is one
+  instruction in `AppleIntelTGLGraphicsMTLDriver`: `movq $0x2711` at file offset `0x22953`, and that
+  immediate is the only `0x2711` in the binary (`0x22957`). Patching those two bytes to `0x2712`,
+  re-signing ad-hoc and reloading makes the device report `Metal3 = yes` — measured with a plain CLI
+  process loading the bundle, so AMFIPass already covers the signature side. What the flip does not
+  buy, measured with it on: `libraryTypeDynamic` compiles, `[[mesh]]`/`[[object]]` shader functions
+  compile, but **mesh pipeline creation fails inside our own compiler layer** — `Xe compiler
+  unsupported serialized request` from `XeCompilerAdapter.bundle/.../adapter.dylib` — and binary
+  archives still report `no target architecture`. Ray tracing is absent because Xe-LP has no RT
+  units. So the remaining Metal 3 work is two own-layer jobs, not an Apple one: teach the adapter the
+  mesh serialized request (its source is unpublished, so that is RE work on the request dispatch),
+  and give the plugin a target architecture/archive implementation. Until then the flag stays off
+  (`/Volumes/macUtility/whateverxe/mtl3-backup/restore-stock.sh`), because a Metal 3-flagged device
+  sends apps down paths the driver cannot finish. Upstream #69 wants exactly these numbers.
 - **CPU:** XCPM via `SSDT-PLUG-ALT` (`plugin-type` `C000`), `ProvideCurrentCpuInfo` true and
   CpuTopologyRebuild enabled. OpCore-Simplify spoofs CPUID leaf 1 to Comet Lake (`0x0A5`); that is
   cosmetic for the chip name. RestrictEvents keeps `revpatch=sbvmm,cpuname` + `revcpu=1` with
