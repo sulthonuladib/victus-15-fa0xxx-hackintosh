@@ -190,6 +190,18 @@ bash /Volumes/macUtility/whateverxe/bench/bench-cpu.sh      # same CPU bench as 
   apps down paths the driver cannot finish. `mtl3-backup/restore-stock.sh` restores the stock bundle;
   `install-metal3.sh` re-applies the experiment. Next step there is RE of the adapter's request
   dispatch, then the archive/target-architecture layer.
+- **Patched Metal driver now runs the XPS driver fixes (branch `metal3-xps`, 2026-11-10).** Using
+  `JulioNectar`'s validated patch table (`tools/metal3/apply-xps-patches.py`, offsets/bytes from
+  their `macos/mtl17-patches.json`), the live 16.0.32 bundle carries patches **2–9**: ignore the
+  kernel's IOSurface compression flag, no render-target fast clear, no dual-SIMD8 clear PS, no
+  fast-clear write PS state, the L3 immediate `0x88000020`→`0xd0000020`, `programClearPipeline`
+  always emits a disabled VS and marks VS dirty, and **the 96 KB-per-command-buffer POSH leak fix
+  (`0x7ed87`)**. Patches 0/1 (their `libxedrv` injection, needs their header layout) and 10 (their
+  `xe.bundle` compiler path) are deliberately not applied — WhateverXe already adds its own load
+  commands and ships its own compiler adapter. Measured right after install: `WindowServer` RSS was
+  **6.0 GB after 49 min**, i.e. the leak is real on this machine, but the fix only loads when
+  WindowServer restarts; verify with `tools/metal3/metal3-bundle.sh status` after a logout/reboot.
+  `restore` puts the stock bundle back from `macUtility/whateverxe/mtl3-backup`.
 - **Display off/on** is unproven. With the pre-fix kext a display-off ended in thousands of
   `WindowServer … Fallback GPU Display Pipe transaction submission failed` lines and a dead panel, so
   `pmset displaysleep 0` is set until wake is tested on the current kext.

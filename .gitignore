@@ -11,3 +11,4 @@ EFI/OC/identity.plist
 .pi/
 .DS_Store
 ._*
+tools/metal3/probe
