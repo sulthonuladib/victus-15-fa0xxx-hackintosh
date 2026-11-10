@@ -252,6 +252,20 @@ bash /Volumes/macUtility/whateverxe/bench/bench-cpu.sh      # same CPU bench as 
   `0x4421C = 0xFFFFFFFF` (mask fatal display errors). Readback is published as `WEXADLPWA` and logged.
   Deployed behind the boot-arg so it can be bisected; the display-off/wake test is the acceptance
   criterion.
+- **Display off/on panics on this GPU (measured 2026-11-10 23:34).** Blanking the panel and waking it
+  froze the machine and left `/Library/Logs/DiagnosticReports/Kernel-2026-11-10-233422.panic`:
+  `NMIPI for spinlock acquisition timeout ... spinlock owner == current_thread`, with the panicked
+  thread inside `thread_call_delayed_timer`, uptime 187 s. This is upstream territory:
+  [#50](https://github.com/b00t0x/WhateverXe/issues/50) is exactly "ADL-H 46A6 eDP link loss retrains
+  the panel and ends in WindowServer watchdog / kernel panic" and
+  [#16](https://github.com/b00t0x/WhateverXe/issues/16) is "black screen after display sleep". Note the
+  failure *mode* changed with `-wex-adlp-wa`: without it the panel stayed dark with CoreDisplay
+  transaction errors (a hang), with the Display-13 workarounds applied it became a panic — the
+  `UNDERRUN_RECOVERY_DISABLE_ADLP` bit disables exactly the recovery that a dropped pipe needs, so
+  the WA is **not** in the boot-args today (`-wex-adlp-wa` stays available on WEX branch `adlp-wa`).
+  `displaysleep 0` therefore stays. Also hardened: `wexpmcst=0` skips the XCPM C-state table write in
+  XE-PM (the risky half) while keeping the HWP rescale that gives the +33 % — the panic backtrace ran
+  through the same `thread_call` path XE-PM uses, so that write is now opt-out until proven.
 - **Display off/on** is unproven. With the pre-fix kext a display-off ended in thousands of
   `WindowServer … Fallback GPU Display Pipe transaction submission failed` lines and a dead panel, so
   `pmset displaysleep 0` is set until wake is tested on the current kext.
