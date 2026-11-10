@@ -9,3 +9,5 @@
 EFI/OC/config.plist.bak-*
 EFI/OC/identity.plist
 .pi/
+.DS_Store
+._*
