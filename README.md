@@ -243,6 +243,15 @@ bash /Volumes/macUtility/whateverxe/bench/bench-cpu.sh      # same CPU bench as 
   still refuses with "This legacy driver has no target architecture for binary archives". So the
   decision is in Metal.framework (dyld shared cache) and/or in a compiler target the 16.0.32 plugin
   never had — this needs shared-cache RE, not a device-side stub.
+- **ADL-P Display 13 workarounds (V212) ported, opt-in `-wex-adlp-wa`.** Apple's kext is a
+  Display-12 TGL driver, so the chicken bits Linux i915 marks as required on Display 13+ were never
+  applied — one candidate for our underruns and the display-off hang. `WhateverXe/kern_adlp_wa.hpp`
+  writes them at the validated 16 MB BAR map in the AlderLakeN power-init hook: `0x46540` bit 17
+  (`DPCE_GATING_DIS`), `0x46430` bit 7 off (`DDI_CLOCK_REG_ACCESS`), `0x70038` bits 30/15/7
+  (`UNDERRUN_RECOVERY_DISABLE_ADLP`, pixel-rounding WA, per-pixel-alpha bypass WA) and
+  `0x4421C = 0xFFFFFFFF` (mask fatal display errors). Readback is published as `WEXADLPWA` and logged.
+  Deployed behind the boot-arg so it can be bisected; the display-off/wake test is the acceptance
+  criterion.
 - **Display off/on** is unproven. With the pre-fix kext a display-off ended in thousands of
   `WindowServer … Fallback GPU Display Pipe transaction submission failed` lines and a dead panel, so
   `pmset displaysleep 0` is set until wake is tested on the current kext.
