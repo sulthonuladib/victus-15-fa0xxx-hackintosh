@@ -13,6 +13,8 @@
 | [NVMeFix](https://github.com/acidanthera/NVMeFix), [RestrictEvents](https://github.com/acidanthera/RestrictEvents) | NVMe and system compatibility |
 | [USBToolBox](https://github.com/USBToolBox/kext), [XHCI-unsupported](https://github.com/RehabMan/OS-X-USB-Inject-All) | USB support |
 | [RealtekRTL8111](https://github.com/Mieze/RTL8111_driver_for_OS_X) | Ethernet driver |
+| [AppleALC](https://github.com/acidanthera/AppleALC) | HD audio layouts. `1.9.8` in `EFI/`; ALC245 is codec id 581 with layouts 13 (HP Omen 2020), 11 and 12. Needs the Apple HDA stack, which Tahoe no longer ships. |
+| [SimpleHDA](https://github.com/laobamac/SimpleHDA) | Lilu plugin that injects the original AppleHDA stack on macOS 26 through OpenCore, so AppleALC works without root patches. `1.0.1` in `EFI/`; requires Lilu >= 1.7.1 and `DisableLinkeditJettison`. |
 | [AirportMtkWlan](https://github.com/Arxusion/AirportMtkWlan) | MediaTek MT7921 Wi-Fi, Tahoe build |
 | [WhateverXe](https://github.com/b00t0x/WhateverXe) | Intel Xe-LP graphics: Lilu plugin that prepares the Apple drivers for Tiger Lake–Raptor Lake iGPUs. Upstream `0.7.0` is the base in `EFI/`; `0.8.0` loses the framebuffer allocation on `46A6` eDP ([#68](https://github.com/b00t0x/WhateverXe/issues/68)). |
 | [WhateverXe Graphics](https://github.com/b00t0x/WhateverXe-Graphics) | Signed userspace half of WhateverXe (accelerator, framebuffer, Metal plugin/translator). Installs under `/Library` + AuxKC; `0.4.1` matches WEX `0.8.0`. Also the source of the **AMFIPass 1.4.1 Mod** we run. |
