@@ -38,9 +38,10 @@ no longer the target.
   -vi2c-force-polling -wex-edp-keep -wex-panel-fallback -wex-no-tc alcid=13 alcverbs=1`. Three are
   still bring-up switches: `-wex-edp-keep` keeps the firmware-trained panel link,
   `-wex-panel-fallback` enables the lenient VBT parse (duplicate DDI + duplicate internal child),
-  `-wex-no-tc` drops the unused Intel TC1..4 routes. `-wex-display-trace` is gone (logging only);
-  the remaining three each need their own boot test, `-wex-edp-keep` last — WEX #43 says removing
-  it can leave the panel dark. `alcverbs=1` is audio triage, not a permanent switch. **Never** add
+  `-wex-no-tc` drops the unused Intel TC1..4 routes. `-wex-display-trace` is back on only while the
+  display glitches are being chased (it adds logging, nothing else); the three functional switches
+  each need their own boot test, `-wex-edp-keep` last — WEX #43 says removing it can leave the panel
+  dark. `alcverbs=1` is audio triage, not a permanent switch. **Never** add
   `-wex-adlp-readout`/`-wex-adlp-load-only`: WEX turns either into an "ADL-P load-only" boot that
   patches `probe`/`start` to reject both drivers.
 - **Why 0.7.0 and not 0.8.0:** WEX #68 reports 0.8.0 losing the framebuffer allocation on `46A6`
