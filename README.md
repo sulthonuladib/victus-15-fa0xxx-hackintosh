@@ -24,21 +24,40 @@ no longer the target.
 
 ## Current state
 
-- **WhateverXe (branch `whateverxe-adl`, 2026-11-10):** the `MACEFI` ESP holds a **fresh
-  OpenCore-Simplify tree**, not the 1401 base. WhateverXe **0.7.0** (Lilu plugin, directly after
-  Lilu; 0.8.0 loses the framebuffer allocation on `46A6` eDP, WEX #68) plus **AMFIPass 1.4.1
-  Mod** (byte-identical to WhateverXe-Graphics `extras/`). `csr-active-config=0x0A03` — the
-  `0x200` bit covers the Mod-signed AuxKC payloads. Boot-args
-  `-allow3d -disablegfxfirmware -igfxdvmt ctrsmt=full -wex-display-trace`. Never add
-  `-wex-adlp-readout`/`-wex-adlp-load-only`: WEX turns both into an "ADL-P load-only" boot that
-  patches `probe`/`start` to reject the framebuffer and the accelerator. DVMT is fixed at 60 MB, so the
-  iGPU carries `framebuffer-patch-enable` + `framebuffer-stolenmem=0x3C00000` and **no**
-  `device-id`/`AAPL,ig-platform-id` spoof; no WhateverGreen. Input is VoodooPS2 (PS/2) +
-  VoodooI2C/VoodooI2CHID (ELAN0788), Wi-Fi is AirportMtkWlan (MT7921), `BlueToolFixup` is
-  carried for third-party BT (no MT7921 loader exists, so BT stays unsupported).
-- **Tahoe 26.7.1 is installed** on the APFS partition; WhateverXe Graphics 0.4.1 is installed in
-  `/Library` + AuxKC but has not produced acceleration yet. The picker waits for a key
-  (`Timeout=0`) with auxiliary entries visible.
+- **Intel acceleration works (branch `whateverxe-adl`, 2026-11-10).** Measured on the internal eDP
+  panel: `IntelAccelerator` 1, `AppleIntelFramebufferController` 1, `VRAM (Dynamic, Max)` 1536 MB,
+  `Metal 2`, panel `1920x1080 @ 144 Hz`, `N97FramebufferBackendReady Yes` — no longer the 7 MB
+  `IONDRVFramebuffer` fallback (report `report-20261110-101608`, utility drive). Stack: `MACEFI` carries a fresh
+  OpenCore-Simplify tree, WhateverXe **0.7.0 built by us** (`420fcb5a…`), **AMFIPass 1.4.1 Mod**
+  (byte-identical to WhateverXe-Graphics `extras/`) and WhateverXe Graphics **0.4.1** installed in
+  `/Library` + AuxKC. `csr-active-config=0x0A03` (the `0x200` bit covers the Mod-signed AuxKC
+  payloads). DVMT is fixed at 60 MB, so the iGPU carries `framebuffer-patch-enable` +
+  `framebuffer-stolenmem=0x3C00000` and **no** `device-id`/`AAPL,ig-platform-id` spoof; no
+  WhateverGreen.
+- **Boot-args:** `-v debug=0x100 keepsyms=1 -allow3d -disablegfxfirmware -igfxdvmt ctrsmt=full
+  -vi2c-force-polling -wex-display-trace -wex-edp-keep -wex-panel-fallback -wex-no-tc`. The last
+  four are bring-up switches: `-wex-edp-keep` keeps the firmware-trained panel link,
+  `-wex-panel-fallback` enables the lenient VBT parse (duplicate DDI + duplicate internal child),
+  `-wex-no-tc` drops the unused Intel TC1..4 routes, `-wex-display-trace` only adds logging and can
+  go once we stop iterating. **Never** add `-wex-adlp-readout`/`-wex-adlp-load-only`: WEX turns
+  either into an "ADL-P load-only" boot that patches `probe`/`start` to reject both drivers.
+- **Why 0.7.0 and not 0.8.0:** WEX #68 reports 0.8.0 losing the framebuffer allocation on `46A6`
+  eDP (`FB0 has no memory allocated`). Our own patched 0.7.0 is the base; see the WhateverXe notes
+  in `REFERENCES.md` for the five changes it carries.
+- **Input / network:** VoodooPS2 (PS/2 keyboard) + VoodooI2C/VoodooI2CHID (ELAN0788), Wi-Fi
+  `AirportMtkWlan` 1.5.0 (MT7921), `BlueToolFixup` for third-party BT — no MT7921 firmware loader
+  exists, so Bluetooth stays unsupported.
+- **Tahoe 26.7.1** runs from the APFS partition; the picker waits for a key (`Timeout=0`) with
+  auxiliary entries visible.
+- **Working area stays on the exFAT utility drive.** `macUtility` (`/Volumes/macUtility` on macOS,
+  `/run/media/sulthonuladib/macUtility` on Linux) holds the WhateverXe artifacts, the CI zips, the
+  `collect.sh`/`props.sh`/`vbt.sh` triage scripts and their reports. Keep using it: if a later
+  change breaks the panel or the boot, the previous kext zip, the last good EFI state and the
+  collected registry/VBT dumps are all there, so a rollback needs no network and no guesswork.
+  Development continues from macOS on this branch; the ESP holds the deployed tree.
+- **Unverified:** audio, brightness keys, sleep/wake (WEX calls sleep experimental), long-run
+  stability under load (WEX #42/#50 on `46A6`), and external outputs from the iGPU (HDMI is wired
+  to the NVIDIA dGPU on this laptop).
 
 - **Not installed on this install:** no NullMoth/1401 NVIDIA driver, no WhateverGreen, no
   XeGfx, no XPS stack. This is a scratch Tahoe install whose only graphics stack is WhateverXe,
