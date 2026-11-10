@@ -31,6 +31,21 @@ build)
 install)
   need_root
   [ -d "$BUILT" ] || { echo "nothing built: run '$0 build' first" >&2; exit 1; }
+  # Measured 2026-11-10: an ad-hoc signed bundle is rejected by AMFI's library validation inside
+  # WindowServer ("Error loading /Library/..." + AppleMobileFileIntegrity library_validation),
+  # WindowServer dies and the screen goes black while sshd keeps running. The stock bundle is signed
+  # with OCLP's "Mod Software Signing" identity, which is why it loads. Only install ad-hoc builds
+  # when `amfi_get_out_of_my_way=1` is in the boot-args, or when the signer matches the stock one.
+  if ! codesign -dv "$BUILT" 2>&1 | grep -q "Authority=OCLP Hackintosh Mod"; then
+    if ! nvram boot-args 2>/dev/null | grep -q "amfi_get_out_of_my_way=1"; then
+      echo "STOP: $BUILT is not Mod-signed and amfi_get_out_of_my_way=1 is not in boot-args." >&2
+      echo "      WindowServer will reject it (library validation) and the GUI will not come back." >&2
+      echo "      Recovery is ssh only. Set the boot-arg or sign with the Mod identity first," >&2
+      echo "      or force with: FORCE=1 $0 install" >&2
+      [ "${FORCE:-0}" = 1 ] || exit 1
+      echo "      FORCE=1: installing anyway"
+    fi
+  fi
   if [ ! -d "$BACKUP/$BUNDLE.orig" ]; then
     mkdir -p "$BACKUP"; cp -R "$LIVE" "$BACKUP/$BUNDLE.orig"
     say "== stock bundle backed up to $BACKUP/$BUNDLE.orig"
