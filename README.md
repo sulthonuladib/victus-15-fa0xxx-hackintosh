@@ -242,7 +242,11 @@ bash /Volumes/macUtility/whateverxe/bench/bench-cpu.sh      # same CPU bench as 
   request, sets EPP, disables energy-efficient turbo, enables C8/C10 and optionally writes PL1
   (`wexpm=W`). The route installs only if the prologue and the `wrmsr` site match byte for byte
   (`debug.wexpm.route`: 1 installed, 3 mismatch, 2 symbol missing). Ported from JulioNectar's
-  `kern_xepm.cpp`; their measurement was +33 % single-core on the same OS build.
+  `kern_xepm.cpp`. **Measured here with `-wexpm` active** (`route 1`, `hwp 1`, `epp 0`, `eet_off 1`,
+  `cst 1`, `d3 2`): peak single-thread clock **3646 → 4391 MHz**, all-core average **2.53 → 2.97 GHz**,
+  the single-thread float loop **0.577 → 0.340–0.434 s** (+33–41 %), the 20-thread batch
+  **1.459 → 1.098 s** (+25 %), `openssl aes-128-gcm` 16 B **68.3 → 94.0 M kB/s** (+37 %). No thermal
+  clamp on AC. Optional `wexpm=22` writes MCHBAR PL1 (their 22 W was the all-core sweet spot).
 - **Stability**: WEX freezes and eDP link loss under load are open upstream (#42/#50); treat long-run
   stability as unproven.
 
