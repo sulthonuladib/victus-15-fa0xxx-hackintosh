@@ -221,7 +221,21 @@ bash /Volumes/macUtility/whateverxe/bench/bench-cpu.sh      # same CPU bench as 
   `[mesh] … unsupported serialized request`. That log is the map for the next step: satisfy
   `-architecture` for binary archives, and decide whether `libigc-tgl` can compile a mesh stage at
   all before writing any emulation.
-- **Binary archives: the gate is framework-side (measured).** The device *does* answer
+- **Both remaining Metal 3 gates are WhateverXe's own binaries, and neither has source.** Report with
+  the disassembly, experiments and a suggested upstream write-up:
+  `/Volumes/macUtility/whateverxe/reports/metal3-gates-20261111.md`. Short version:
+  **archives** — the "no target architecture" string lives in `impostor.dylib`, so the refusal is
+  deliberate in WEX's shim; `-architecture` exists and returns an `MTLArchitecture` whose name is
+  `Unknown`, and neither renaming it (`applegpu_g1x`, `IntelGen12LP`, `gen12lp`, `XeLP`) nor real CPU
+  type/subtype pairs (`0x01000007`/3, `/8`, `0x0100000c`/0) changes it. **Mesh** — `adapter.dylib`
+  accepts a serialized request only at `size == 0xd8` with a zero stage field (`0x13e0`–`0x13f2`);
+  forcing that branch (`75 09`→`eb 09`) moves the failure to `Xe compiler unsupported vertex state`,
+  i.e. there is no mesh/vertex/fragment state translation behind the gate. The compiler itself is
+  capable: `libigc-tgl.dylib` ships `igc-mesh-shader-lowering`, `MeshShaderLowering` and the
+  `GenISA.OutputMesh*` intrinsics. So mesh/archives need a compiler plugin we own (Apple's serialized
+  request format is private), not a kext or flag change — hence parked, with the instrumentation
+  (`tools/metal3/hook.m`) left in place.
+- **Older note, superseded**: the archive gate was first attributed to Metal.framework. The device *does* answer
   `-architecture` and returns an `MTLArchitecture` object, but its `name` is `Unknown` and
   `cpuType`/`cpuSubtype`/`revision` are scalar returns we could not resolve through
   `performSelector:`. Swizzling `-[MTLArchitecture name]` to `applegpu_g13/g11/g12`, `IntelGen12LP`,
