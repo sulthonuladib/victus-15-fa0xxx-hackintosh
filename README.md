@@ -44,7 +44,8 @@ NVIDIA dGPU is powered off and no longer enumerates. The NVIDIA/NullMoth and XeG
 | Piece | Version | Notes |
 |---|---|---|
 | OpenCore | 1.0.8 | config validates with the 1.0.8 `ocvalidate`; 5 drivers, 12 ACPI tables, 30 kexts |
-| WhateverXe (kext) | **0.7.0, our build** | binary `4cd2f40e…`, CI run 42809313867; deployed in `EFI/OC/Kexts/WhateverXe.kext` |
+| WhateverXe (kext) | **0.7.0, our build** | binary `a5897761…`, CI run 42853206917 (WM fix + XE-PM + gated V212); deployed in `EFI/OC/Kexts/WhateverXe.kext` |
+| WEX branch stack | `adlp-panel-route` -> `wm-cdclk-half` -> `xepm` -> `adlp-wa` | each branch adds one feature and CI builds it; the ESP always carries the newest build, and every feature is boot-arg gated (`-wexpm`, `wexpmcst=0`, `-wex-adlp-wa` off today) |
 | WEX source | fork `sulthonuladib/WhateverXe`, branches `adlp-panel-route` + `wm-cdclk-half` | see "Patches we carry" |
 | WhateverXe Graphics | 0.4.1 | installs `AppleIntelTGLGraphics*` 16.0.32 + `AppleIntelTGLCompat` 0.8.0 into `/Library` + AuxKC, and the 16.0.32 GPU bundles into `/Library/GPUBundles` |
 | AMFIPass | 1.4.1 **Mod** | from WhateverXe-Graphics `extras/`; never load it together with upstream AMFIPass |
