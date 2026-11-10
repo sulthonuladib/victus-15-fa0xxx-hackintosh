@@ -43,6 +43,9 @@
   privileges` only when a terminal is not available; never open a GUI dialog from an agent pane.
   The machine password itself is given out-of-band and must never appear in a committed file, a
   script under `tools/`, or a report on the utility drive.
+- **Never reboot, shut down or power off the machine yourself.** Ask the user to reboot and wait
+  (the only exception is when they explicitly ask you to, e.g. from an SSH session where they have no
+  screen). A reboot takes the screen away from them and kills every rex pane, including running agents.
 - When spawning work in a rex pane, start the interactive `pi "<prompt>"`, not `pi -p`: print mode
   buffers everything until it exits and leaves the pane blank, so nobody can watch progress or
   interrupt it. Collect results with `rex capture` and the report file the agent writes.
