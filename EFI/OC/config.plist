@@ -1202,7 +1202,7 @@
 				Rg==
 				</data>
 				<key>boot-args</key>
-				<string>-v debug=0x100 keepsyms=1 -allow3d -disablegfxfirmware -igfxdvmt ctrsmt=full -vi2c-force-polling -wex-display-trace -wex-edp-keep</string>
+				<string>-v debug=0x100 keepsyms=1 -allow3d -disablegfxfirmware -igfxdvmt ctrsmt=full -vi2c-force-polling -wex-display-trace -wex-edp-keep -wex-panel-fallback</string>
 				<key>csr-active-config</key>
 				<data>
 				AwoAAA==
