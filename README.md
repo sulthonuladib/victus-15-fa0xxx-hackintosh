@@ -35,12 +35,14 @@ no longer the target.
   `framebuffer-stolenmem=0x3C00000` and **no** `device-id`/`AAPL,ig-platform-id` spoof; no
   WhateverGreen.
 - **Boot-args:** `-v debug=0x100 keepsyms=1 -allow3d -disablegfxfirmware -igfxdvmt ctrsmt=full
-  -vi2c-force-polling -wex-display-trace -wex-edp-keep -wex-panel-fallback -wex-no-tc`. The last
-  four are bring-up switches: `-wex-edp-keep` keeps the firmware-trained panel link,
+  -vi2c-force-polling -wex-edp-keep -wex-panel-fallback -wex-no-tc alcid=13 alcverbs=1`. Three are
+  still bring-up switches: `-wex-edp-keep` keeps the firmware-trained panel link,
   `-wex-panel-fallback` enables the lenient VBT parse (duplicate DDI + duplicate internal child),
-  `-wex-no-tc` drops the unused Intel TC1..4 routes, `-wex-display-trace` only adds logging and can
-  go once we stop iterating. **Never** add `-wex-adlp-readout`/`-wex-adlp-load-only`: WEX turns
-  either into an "ADL-P load-only" boot that patches `probe`/`start` to reject both drivers.
+  `-wex-no-tc` drops the unused Intel TC1..4 routes. `-wex-display-trace` is gone (logging only);
+  the remaining three each need their own boot test, `-wex-edp-keep` last — WEX #43 says removing
+  it can leave the panel dark. `alcverbs=1` is audio triage, not a permanent switch. **Never** add
+  `-wex-adlp-readout`/`-wex-adlp-load-only`: WEX turns either into an "ADL-P load-only" boot that
+  patches `probe`/`start` to reject both drivers.
 - **Why 0.7.0 and not 0.8.0:** WEX #68 reports 0.8.0 losing the framebuffer allocation on `46A6`
   eDP (`FB0 has no memory allocated`). Our own patched 0.7.0 is the base; see the WhateverXe notes
   in `REFERENCES.md` for the five changes it carries.
@@ -55,16 +57,24 @@ no longer the target.
   change breaks the panel or the boot, the previous kext zip, the last good EFI state and the
   collected registry/VBT dumps are all there, so a rollback needs no network and no guesswork.
   Development continues from macOS on this branch; the ESP holds the deployed tree.
-- **Audio works (ALC245, 2026-11-10).** Tahoe really does not ship `AppleHDA.kext`
+- **Audio: HDA stack loads, no sound yet (2026-11-10).** Tahoe does not ship `AppleHDA.kext`
   (`/System/Library/Extensions/AppleHDA.kext` is absent on this 26.7.1), so AppleALC alone cannot
   produce sound. The ESP carries **AppleALC 1.9.8** followed by **SimpleHDA 1.0.1** (a Lilu plugin
   that injects the original Apple HDA stack — no root patch, no system-volume write, no AuxKC
-  rebuild) with `alcid=13`, the ALC245 layout AppleALC ships. Measured: `AppleALC 1.9.8` and
-  `SimpleHDA 1.0.1` loaded, `AppleHDAController`/`AppleHDADriver`/`AppleHDAEngineOutput` each 1,
-  `Built-in Output` is the default output (2 ch, Internal Speakers) with the HDA node reporting
-  `layout-id` 7 (report `audio-20261110-112339`, utility drive). If it ever goes silent, try
-  `alcid=11` (ALC235/Lenovo) or `alcid=12` (ALC245/Lenovo). Microphone and headphone-jack
-  switching are not verified. Requires `Kernel > Quirks > DisableLinkeditJettison=true` (set).
+  rebuild) with `alcid=13`, the only HP layout AppleALC ships for ALC245. Measured: both plugins
+  load, `AppleHDAController`/`AppleHDADriver`/`AppleHDAEngineOutput` each 1, `Built-in Output` is
+  the default output (2 ch, Internal Speakers), the level controls sit at 87/87 and a 440 Hz tone
+  does start the engine (`IOAudioEngineState` 1) — **but nothing is audible**. So the kernel path
+  and CoreAudio are fine; the codec pin/amp path is not. Two facts worth keeping straight:
+  `layout-id` 7 on HDEF is Lilu's `DefaultReportedLayoutId` (what AppleALC reports to AppleHDA, not
+  the layout AppleALC picked); the applied layout is `alc-layout-id` = 13. Layout 13 drives
+  speaker pin `0x17` from DAC `0x03` and headphones `0x21` from DAC `0x02` — the Victus wiring is
+  unverified. The `SimpleHDA-HAL-1.0.1.pkg` bundle is installed at
+  `/Library/Audio/Plug-Ins/SimpleHDA/AppleHDAHALPlugIn.bundle` but SimpleHDA only detects it at
+  boot (`SimpleHDAHALMode` was still `not-installed` on the 2026-11-10 session), hence the
+  `alcverbs=1` + reboot triage in progress. If the wiring turns out to be wrong, try `alcid=11`
+  (ALC235/Lenovo) or `alcid=12` (ALC245/Lenovo). Microphone and headphone-jack switching are not
+  verified. Requires `Kernel > Quirks > DisableLinkeditJettison=true` (set).
 - **Unverified:** brightness keys, sleep/wake (WEX calls sleep experimental), long-run
   stability under load (WEX #42/#50 on `46A6`), and external outputs from the iGPU (HDMI is wired
   to the NVIDIA dGPU on this laptop).
