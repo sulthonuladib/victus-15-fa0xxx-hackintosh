@@ -78,13 +78,26 @@ no longer the target.
   unverified. The `SimpleHDA-HAL-1.0.1.pkg` bundle is installed at
   `/Library/Audio/Plug-Ins/SimpleHDA/AppleHDAHALPlugIn.bundle` but SimpleHDA only detects it at
   boot (`SimpleHDAHALMode` was still `not-installed` on the 2026-11-10 session), hence the
-  `alcverbs=1` (now in the boot-args) + reboot triage. Next boot publishes AppleALC's
+  `alcverbs=1` (now in the boot-args). Next boot publishes AppleALC's
   `ALCUserClientProvider`, so `macUtility/whateverxe/audio-verbs.sh` can dump every widget's
   `config_default`, connection list, pin sense/EAPD and amp gain without a reboot loop; the plan is
-  to find the codec's real speaker pin instead of trusting layout 13's `0x17`. If the wiring turns
-  out to be wrong, try `alcid=11` (ALC235/Lenovo) or `alcid=12` (ALC245/Lenovo). Microphone and
-  headphone-jack switching are not verified. Requires
-  `Kernel > Quirks > DisableLinkeditJettison=true` (set).
+  to find the codec's real speaker pin instead of trusting a layout. That dump settled it: pin
+  `0x14` is the fixed internal speaker (BIOS default `0x90170110`, EAPD on) and its only source is
+  **DAC `0x02`**, `0x17` is a 4-way mux (`0x02/0x03/0x06/0x08`), `0x21` takes `0x02/0x03`, and the
+  pin amps are mute-only (`AMP_OUT_CAP` `0x80000000`, no gain). Layout 13 drives `0x17 <- DAC 0x03`
+  — a muted, un-enabled pin fed by an idle converter, which is exactly the silence. Of the three
+  layouts AppleALC ships for ALC245, **layout 11** is the only one whose speaker path is
+  `0x14 <- 0x02`, so the boot-args now say `alcid=11`. Microphone and headphone-jack switching are
+  not verified. Requires `Kernel > Quirks > DisableLinkeditJettison=true` (set).
+- **Display off does not come back (2026-11-10, on the pre-WM-fix kext).** With `displaysleep 10`
+  the panel blanked at 18:56 and never returned; the logs show a pipe-A underrun at 18:56:03 and
+  then 12208 `WindowServer ... [com.apple.CoreDisplay] [ERROR] - Fallback GPU Display Pipe
+  transaction submission failed` / `Transaction Target State` / `DisplaySurface Size: (1920x1080)`
+  in 16 minutes until the machine was force-powered-off. The first boot on the WM fix (19:15) has
+  **0 underruns and 0 CoreDisplay errors**, but display-off/on has not been exercised on it yet.
+  Until it is, `pmset displaysleep 0` keeps the panel on (sleep was already 0). If the fix does not
+  cover it, the known workarounds for this class are `-nodisplaysleepDC6 -noDC9 dc6config=0`
+  ([#63](https://github.com/b00t0x/WhateverXe/issues/63)).
 - **Unverified:** brightness keys, sleep/wake (WEX calls sleep experimental), long-run
   stability under load (WEX #42/#50 on `46A6`), and external outputs from the iGPU (HDMI is wired
   to the NVIDIA dGPU on this laptop).
