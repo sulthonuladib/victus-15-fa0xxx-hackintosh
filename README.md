@@ -233,11 +233,16 @@ bash /Volumes/macUtility/whateverxe/bench/bench-cpu.sh      # same CPU bench as 
   `WindowServer … Fallback GPU Display Pipe transaction submission failed` lines and a dead panel, so
   `pmset displaysleep 0` is set until wake is tested on the current kext.
 - **CPU turbo**: `About This Mac` shows 2.68 GHz because macOS publishes that nominal
-  (`hw.cpufrequency` = min = max); XCPM itself lists P-states to 4700 MHz and `pmset -g therm` shows
-  no clamp. Measured peaks are 3646 MHz (1 thread) / 3494 MHz (6) / 2.5 GHz average (20 threads), so
-  the top bins are unused. The promising lead is **XE-PM** from the XPS/IrisXe stack (hybrid HWP
-  rescale in ~78.7 MHz units, EPP, C8/C10) — +33 % single-core there, patched against our exact
-  build; see [REFERENCES.md](REFERENCES.md).
+  (`hw.cpufrequency` = min = max); XCPM lists P-states to 4700 MHz and `pmset -g therm` shows no
+  clamp, yet the measured ceiling was 3646 MHz (1 thread) / 3494 MHz (6) / 2.5 GHz average (20).
+  Cause: XCPM writes `IA32_HWP_REQUEST` in 100 MHz ratio units while a hybrid P-core HWP unit is
+  ~78.7 MHz, so a request of 47 lands near 3.7 GHz. **XE-PM is now ported into WhateverXe**
+  (`WhateverXe/kern_xepm.hpp`, WEX branch `xepm`, opt-in `-wexpm`, sysctls `debug.wexpm.*`): it
+  rescales max/desired after Apple's own write on cores whose `HWP_CAPABILITIES` highest exceeds the
+  request, sets EPP, disables energy-efficient turbo, enables C8/C10 and optionally writes PL1
+  (`wexpm=W`). The route installs only if the prologue and the `wrmsr` site match byte for byte
+  (`debug.wexpm.route`: 1 installed, 3 mismatch, 2 symbol missing). Ported from JulioNectar's
+  `kern_xepm.cpp`; their measurement was +33 % single-core on the same OS build.
 - **Stability**: WEX freezes and eDP link loss under load are open upstream (#42/#50); treat long-run
   stability as unproven.
 
