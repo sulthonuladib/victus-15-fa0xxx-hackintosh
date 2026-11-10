@@ -210,6 +210,17 @@ bash /Volumes/macUtility/whateverxe/bench/bench-cpu.sh      # same CPU bench as 
   reload it**: Tahoe keeps the same WindowServer (pid 205 started at boot while loginwindow restarted
   70 min later), so the leak kept running at 196–332 MB/min and reached 7.5 GB — `metal3-bundle.sh
   watch N` measures it. The patched code only takes effect after a `WindowServer` restart or reboot.
+- **Metal 3 hook layer (branch `metal3-xps`).** Our own dylib now loads into every Metal process
+  without touching the Mach-O header: `impostor.dylib` is renamed `impostor-orig.dylib` and replaced
+  by `tools/metal3/hook.m` built with install name `@rpath/impostor.dylib`, which `dlopen`s the
+  original from its own directory and then swizzles `MTLIGAccelDevice`. (The alternative — adding an
+  `LC_LOAD_DYLIB` — does not fit: 27 commands, `sizeofcmds 0x10b0`, header ends at `0x10d0`; and
+  repointing the MPS command breaks its 9 strong imports, while a symlink at the shortened path is
+  refused by dyld.) It logs to `/var/tmp/xedrv-hook-<pid>.log`, pass-through only, and prints what
+  the driver is asked: `[family] 5001 -> 0`, `[archive] … no target architecture`,
+  `[mesh] … unsupported serialized request`. That log is the map for the next step: satisfy
+  `-architecture` for binary archives, and decide whether `libigc-tgl` can compile a mesh stage at
+  all before writing any emulation.
 - **Display off/on** is unproven. With the pre-fix kext a display-off ended in thousands of
   `WindowServer … Fallback GPU Display Pipe transaction submission failed` lines and a dead panel, so
   `pmset displaysleep 0` is set until wake is tested on the current kext.
