@@ -261,6 +261,21 @@ bash /Volumes/macUtility/whateverxe/bench/bench-cpu.sh      # same CPU bench as 
   perturbs by replacing the file it hashes. Two ways past it: patch the original adapter in place
   (identity unchanged, needs a code cave for the logger) or reproduce the hash input inside the graft.
   Adapter restored and verified (`8cb3b4f2`) after every experiment.
+- **Mesh: the adapter is the only refusal (measured 2026-11-11).** Three byte patches in
+  `adapter.dylib` make a Metal 3 mesh render pipeline state succeed three runs in a row: the
+  serialized-request gate (`0x13f2`, `jne`→`jmp`; accepts only `size == 0xd8` + zero stage field) and
+  the two vertex-state byte checks at request offsets `0xd8`/`0xd9` (`0x0e7e`, `0x0e92`, 6-byte NOPs).
+  The compiler log then shows a real mesh+object+fragment build: `Compilation BEGIN … pipeline` →
+  `Compilation SUCCESS`. `libigc-tgl` genuinely compiles mesh. **But a draw hangs**: with those checks
+  bypassed the adapter hands the GPU a structurally invalid state, `waitUntilCompleted` never returns
+  (host killed at the 300 s timeout), while the machine itself stays healthy. So the next step is to
+  *satisfy* the `0xd8`/`0xd9` checks instead of NOPing them, i.e. translate the framework's request
+  properly. Also worth knowing: Metal **caches** compiled pipelines, so a mesh state created once keeps
+  working with the stock adapter until `~/Library/Caches/com.apple.metal` and
+  `/var/folders/*/C/com.apple.metal*` are removed — always clear them before believing a result.
+  Adapter restored to stock (`8cb3b4f2`, byte-verified), mesh-accepting build staged on the utility
+  drive, reproduction in `tools/metal3/patch-adapter.py` + `meshdraw.m`, full write-up in
+  `macUtility/whateverxe/reports/metal3-mesh-20261111.md`.
 - **Older note, superseded**: the archive gate was first attributed to Metal.framework. The device *does* answer
   `-architecture` and returns an `MTLArchitecture` object, but its `name` is `Unknown` and
   `cpuType`/`cpuSubtype`/`revision` are scalar returns we could not resolve through
