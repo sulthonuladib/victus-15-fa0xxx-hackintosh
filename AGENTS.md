@@ -39,6 +39,9 @@
   release tag, but do not edit its source or working tree. Keep local changes in patches/stashes/branches; preserve
   upstream licences/notices. Build copies belong on APFS, not the repo. Keep the source tag matched to the installed
   1401/driver version before building from the NullMoth tree.
+- When spawning work in a rex pane, start the interactive `pi "<prompt>"`, not `pi -p`: print mode
+  buffers everything until it exits and leaves the pane blank, so nobody can watch progress or
+  interrupt it. Collect results with `rex capture` and the report file the agent writes.
 - Validate EFI edits with matching-version `ocvalidate` plus referenced-file/dependency checks (the 1.0.9
   `.linux` build from the 1401 OpenCore zip sits in `.downloads/ocvalidate`). Use `python3 -B` for
   upstream imports; review recommendations instead of blindly applying them.
