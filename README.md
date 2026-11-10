@@ -201,7 +201,12 @@ bash /Volumes/macUtility/whateverxe/bench/bench-cpu.sh      # same CPU bench as 
   commands and ships its own compiler adapter. Measured right after install: `WindowServer` RSS was
   **6.0 GB after 49 min**, i.e. the leak is real on this machine, but the fix only loads when
   WindowServer restarts; verify with `tools/metal3/metal3-bundle.sh status` after a logout/reboot.
-  `restore` puts the stock bundle back from `macUtility/whateverxe/mtl3-backup`. A **logout does not
+  `restore` puts the stock bundle back from `macUtility/whateverxe/mtl3-backup`. With
+  `amfi_get_out_of_my_way=1` in the boot-args the ad-hoc bundle loads in WindowServer (without it the
+  GUI dies on library validation — that is the black screen of 2026-11-10 22:01, recoverable only
+  over SSH). Measured across the 22:19 boot: WindowServer starts at ~140 MB and grows **2.7 MB/min**
+  with a flattening curve, against **196–530 MB/min** (7.5 GB in under an hour) on the stock bundle.
+  That leak fix is the single biggest usability win on this stack so far. A **logout does not
   reload it**: Tahoe keeps the same WindowServer (pid 205 started at boot while loginwindow restarted
   70 min later), so the leak kept running at 196–332 MB/min and reached 7.5 GB — `metal3-bundle.sh
   watch N` measures it. The patched code only takes effect after a `WindowServer` restart or reboot.
