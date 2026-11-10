@@ -94,6 +94,14 @@
 				<key>Path</key>
 				<string>SSDT-XOSI.aml</string>
 			</dict>
+			<dict>
+				<key>Comment</key>
+				<string>Disable NVIDIA dGPU: cut PERST#/rail at _SB.PC00.PEG1.PEGP._INI</string>
+				<key>Enabled</key>
+				<true/>
+				<key>Path</key>
+				<string>SSDT-DGPU-POFF.aml</string>
+			</dict>
 		</array>
 		<key>Delete</key>
 		<array/>
