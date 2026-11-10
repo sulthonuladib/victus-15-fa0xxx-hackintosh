@@ -201,7 +201,10 @@ bash /Volumes/macUtility/whateverxe/bench/bench-cpu.sh      # same CPU bench as 
   commands and ships its own compiler adapter. Measured right after install: `WindowServer` RSS was
   **6.0 GB after 49 min**, i.e. the leak is real on this machine, but the fix only loads when
   WindowServer restarts; verify with `tools/metal3/metal3-bundle.sh status` after a logout/reboot.
-  `restore` puts the stock bundle back from `macUtility/whateverxe/mtl3-backup`.
+  `restore` puts the stock bundle back from `macUtility/whateverxe/mtl3-backup`. A **logout does not
+  reload it**: Tahoe keeps the same WindowServer (pid 205 started at boot while loginwindow restarted
+  70 min later), so the leak kept running at 196–332 MB/min and reached 7.5 GB — `metal3-bundle.sh
+  watch N` measures it. The patched code only takes effect after a `WindowServer` restart or reboot.
 - **Display off/on** is unproven. With the pre-fix kext a display-off ended in thousands of
   `WindowServer … Fallback GPU Display Pipe transaction submission failed` lines and a dead panel, so
   `pmset displaysleep 0` is set until wake is tested on the current kext.

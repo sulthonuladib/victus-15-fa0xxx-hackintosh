@@ -48,6 +48,21 @@ restore)
   chown -R root:wheel "$LIVE"; chmod -R u+rwX,go+rX "$LIVE"
   say "== restored the stock bundle (Metal 2)"
   ;;
+watch)
+  # watch [minutes] - sample WindowServer RSS every 15 s and report the growth rate.
+  mins=${2:-5}
+  pid=$(pgrep -x WindowServer)
+  start=$(ps -o rss= -p "$pid" | tr -d ' ')
+  say "== WindowServer pid $pid, sampling for ${mins} min"
+  for i in $(seq 1 $((mins*4))); do
+    sleep 15
+    now=$(ps -o rss= -p "$pid" | tr -d ' ')
+    printf '   t+%3ds  %.1f MB\n' $((i*15)) "$(echo "scale=1; $now/1024" | bc)"
+  done
+  end=$(ps -o rss= -p "$pid" | tr -d ' ')
+  rate=$(echo "scale=1; ($end-$start)/1024/($mins)" | bc)
+  say "== growth: $rate MB/min (leak baseline was ~196 MB/min with the unpatched driver)"
+  ;;
 status)
   say "== live bundle"
   shasum -a 256 "$LIVE/Contents/MacOS/AppleIntelTGLGraphicsMTLDriver" 2>/dev/null | cut -c1-24
