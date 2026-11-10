@@ -57,8 +57,13 @@ no longer the target.
   `collect.sh`/`props.sh`/`vbt.sh` triage scripts and their reports. Keep using it: if a later
   change breaks the panel or the boot, the previous kext zip, the last good EFI state and the
   collected registry/VBT dumps are all there, so a rollback needs no network and no guesswork.
-  Development continues from macOS on this branch; the ESP holds the deployed tree.
-- **Audio: HDA stack loads, no sound yet (2026-11-10).** Tahoe does not ship `AppleHDA.kext`
+  Development continues from macOS on this branch; the ESP holds the deployed tree. Added
+  2026-11-10: `wex-gfx-state.sh` (WEX watermark/DBUF/clock + underrun count since boot),
+  `wex-glitchwatch.sh start|mark|stop` (kernel GPU log + display-link jitter around a glitch you
+  just saw), `audio-verbs.sh` + `tools/alc-verb` (ALC245 codec dump through AppleALC),
+  `bench/bench-cpu.sh` (same CPU benchmark on macOS and Linux), `bench/CPU-NOTES.md`,
+  `dgpu-off/` (validated SSDT to power off the RTX 3050) and `reports/` (research write-ups).
+- **Audio: HDA stack loads, no sound yet; codec triage armed (2026-11-10).** Tahoe does not ship `AppleHDA.kext`
   (`/System/Library/Extensions/AppleHDA.kext` is absent on this 26.7.1), so AppleALC alone cannot
   produce sound. The ESP carries **AppleALC 1.9.8** followed by **SimpleHDA 1.0.1** (a Lilu plugin
   that injects the original Apple HDA stack — no root patch, no system-volume write, no AuxKC
@@ -73,9 +78,13 @@ no longer the target.
   unverified. The `SimpleHDA-HAL-1.0.1.pkg` bundle is installed at
   `/Library/Audio/Plug-Ins/SimpleHDA/AppleHDAHALPlugIn.bundle` but SimpleHDA only detects it at
   boot (`SimpleHDAHALMode` was still `not-installed` on the 2026-11-10 session), hence the
-  `alcverbs=1` + reboot triage in progress. If the wiring turns out to be wrong, try `alcid=11`
-  (ALC235/Lenovo) or `alcid=12` (ALC245/Lenovo). Microphone and headphone-jack switching are not
-  verified. Requires `Kernel > Quirks > DisableLinkeditJettison=true` (set).
+  `alcverbs=1` (now in the boot-args) + reboot triage. Next boot publishes AppleALC's
+  `ALCUserClientProvider`, so `macUtility/whateverxe/audio-verbs.sh` can dump every widget's
+  `config_default`, connection list, pin sense/EAPD and amp gain without a reboot loop; the plan is
+  to find the codec's real speaker pin instead of trusting layout 13's `0x17`. If the wiring turns
+  out to be wrong, try `alcid=11` (ALC235/Lenovo) or `alcid=12` (ALC245/Lenovo). Microphone and
+  headphone-jack switching are not verified. Requires
+  `Kernel > Quirks > DisableLinkeditJettison=true` (set).
 - **Unverified:** brightness keys, sleep/wake (WEX calls sleep experimental), long-run
   stability under load (WEX #42/#50 on `46A6`), and external outputs from the iGPU (HDMI is wired
   to the NVIDIA dGPU on this laptop).
@@ -83,10 +92,32 @@ no longer the target.
 - **Not installed on this install:** no NullMoth/1401 NVIDIA driver, no WhateverGreen, no
   XeGfx, no XPS stack. This is a scratch Tahoe install whose only graphics stack is WhateverXe,
   and it needs `IONDRVSupport` and no spoof. The NVIDIA and XeGfx history lives on `master`.
+- **Display: underruns, traced to a WEX certificate bug (2026-11-10).** What the user sees as
+  flicker/lag is measurable: `[IGFB][ERROR][DISPLAY] Display Pipe Underrun occurred on pipe(s) A`
+  2491 times in one 59-minute boot, in bursts (one minute alone had 1228) with `DBUF Pipe A
+  Plane 0` holding the whole bank (`start 40 end 1023 size 984`). The kernel side checks out: the
+  panel link is 4 lanes at **HBR** (0x0A) with 342.06 MHz pixel clock = **95 %** of HBR×4, CDCLK is
+  the firmware's **179.2 MHz**, and WEX never programs the watermarks itself. Root cause found in
+  `WhateverXe/kern_display13_wm.hpp:289`: `clockFits()` compares the plane pixel rate against
+  `nativeHz/2`, but `nativeHz` is already **2×CDCLK** by the donor ABI, so it demanded
+  `pixelHz <= CDCLK` — twice as strict as gen12, where i915's `intel_pixel_rate_to_cdclk()` divides
+  by 2. 342.06 MHz against 179.2 MHz therefore failed, which latched `watermarkFaulted`/
+  `dbuf.faulted` and froze `wmPending` for the session (`N97FBPrimaryWMProgram` = *Unavailable*,
+  `N97FBWMLatch` = *Input*), blocking watermark retirement and any later DBUF/clock re-layout.
+  Branch `gfx-wm-fix` carries the corrected comparison plus its unit test (CI run 42809313867,
+  binary `4cd2f40e…`); it is deployed and waiting for a boot test. Metal support is **Metal 2**;
+  Metal 3 is not reachable from WEX — the driver reports `mac2 = true, metal3 = false`, and the
+  plugins fail with "This legacy driver has no target architecture", so it needs a different
+  `AppleIntelTGLGraphicsMTLDriver`, not a kext change ([#69](https://github.com/b00t0x/WhateverXe/issues/69)).
 - **CPU:** XCPM via `SSDT-PLUG-ALT` (`plugin-type` `C000`), `ProvideCurrentCpuInfo` true and
   CpuTopologyRebuild enabled. OpCore-Simplify spoofs CPUID leaf 1 to Comet Lake (`0x0A5`); that is
   cosmetic for the chip name. RestrictEvents keeps `revpatch=sbvmm,cpuname` + `revcpu=1` with
-  `revcpuname` in NVRAM.
+  `revcpuname` in NVRAM. The **2.68 GHz** in About This Mac is the nominal value macOS publishes
+  (`hw.cpufrequency` = min = max), not a cap: XCPM lists P-states to **4700 MHz**
+  (`CPUPStates`, `hard_plimit_max_100mhz_ratio` 47) and `pmset -g therm` reports no clamp. Measured
+  2026-11-10 with `powermetrics`: 3646 MHz peak on one busy thread, 3494 MHz with six, 2.5 GHz
+  system average on all 20 threads — i.e. the top turbo bins (3.7–4.7 GHz) are never used, which is
+  the open CPU-PM question (`bench/CPU-NOTES.md`).
 - **Wi-Fi:** `AirportMtkWlan` 1.5.0 (MT7921, kernel 25.x builds only) enabled; not yet verified at
   runtime on this install. Bluetooth (`13D3:3567`) has no macOS firmware loader — `MtkBt` matches
   MT7925 ids only — so `BlueToolFixup` is present but BT is not expected to work.
@@ -108,8 +139,13 @@ no longer the target.
   `nvfb*`/`nvaccel*` boot-args, `csr-active-config=0x0A53`) do **not** exist on this branch.
   Rolling back to NVIDIA means switching back to `master` and redeploying from it.
 - **Do not run `tools/deploy-efi.sh` from an unsynced tree.** It uses `rsync --delete`.
-- Matching `ocvalidate` (1.0.9 `.linux` from the 1401 OpenCore zip) lives in `.downloads/ocvalidate`.
-  `--check` ignores `EFI/OC/identity.plist`, which is git-ignored and never deployed.
+- Matching `ocvalidate` lives in `.downloads/ocvalidate-macos/` (macOS, from the OpenCore 1.0.8
+  RELEASE zip — the newest release, and the one our config validates against) and
+  `.downloads/ocvalidate-linux/` (when running the script from Omarchy); the script picks the host's
+  build. `--check` ignores `EFI/OC/identity.plist`, which is git-ignored and never deployed.
+- `tools/deploy-efi.sh` runs on both sides: `findmnt` on Linux, `mount`/`df` on macOS, where the
+  target is `/Volumes/MACEFI`. It still refuses non-FAT32 volumes and the volume holding the running
+  system, and it is the only supported way to write the ESP.
 ## Next: WhateverXe on Alder Lake-P
 
 Install order: EFI first (done on the ESP), then the WhateverXe Graphics pkg, then a restart so
