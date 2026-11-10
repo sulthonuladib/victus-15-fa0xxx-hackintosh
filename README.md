@@ -235,6 +235,20 @@ bash /Volumes/macUtility/whateverxe/bench/bench-cpu.sh      # same CPU bench as 
   `GenISA.OutputMesh*` intrinsics. So mesh/archives need a compiler plugin we own (Apple's serialized
   request format is private), not a kext or flag change — hence parked, with the instrumentation
   (`tools/metal3/hook.m`) left in place.
+- **Compiler-plugin ABI mapped (2026-11-10 late).** `XeCompilerAdapter.bundle/Contents/MacOS/adapter.dylib`
+  is not a real bundle (no Info.plist); MTLCompilerService loads the dylib by path and resolves exactly
+  five exports: `MTLCompilerCreate`, `MTLCompilerBuildRequestWithSerializedBitcode`,
+  `MTLCompilerDelete`, `MTLCompilerReleaseReply`, `XeBuildUntranslated`. A graft plugin
+  (`tools/metal3/adapter-graft.m`) that exports the same five and forwards to a renamed
+  `adapter-orig.dylib` **does load**: the log shows `MTLCompilerCreate` receiving a struct whose first
+  word is version `0x21` and returning a `0x160`-byte calloc'd context, and
+  `…BuildRequestWithSerializedBitcode` being called for a compute pipeline. But the service
+  **segfaults unless every one of the five prototypes is exact** (my first attempt stub'd
+  `XeBuildUntranslated`; the second mis-declared it), and the service sandbox permits reads under
+  `/Library/GPUBundles` but not file writes under `/var/tmp` — logging has to go through public
+  `os_log`. Adapter restored (`8cb3b4f2`, verified). Next step for mesh is therefore bounded and
+  concrete: reconstruct the five signatures from the disassembly (each prologue is short), then the
+  graft becomes the place to dump the serialized mesh request and, later, translate it.
 - **Older note, superseded**: the archive gate was first attributed to Metal.framework. The device *does* answer
   `-architecture` and returns an `MTLArchitecture` object, but its `name` is `Unknown` and
   `cpuType`/`cpuSubtype`/`revision` are scalar returns we could not resolve through
