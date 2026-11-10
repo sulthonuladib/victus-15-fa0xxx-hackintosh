@@ -55,7 +55,13 @@ no longer the target.
   change breaks the panel or the boot, the previous kext zip, the last good EFI state and the
   collected registry/VBT dumps are all there, so a rollback needs no network and no guesswork.
   Development continues from macOS on this branch; the ESP holds the deployed tree.
-- **Unverified:** audio, brightness keys, sleep/wake (WEX calls sleep experimental), long-run
+- **Audio (added, unverified):** ALC245 `10EC:0245`. Tahoe removed `AppleHDA.kext`, so AppleALC alone
+  cannot work; the ESP now carries **AppleALC 1.9.8** followed by **SimpleHDA 1.0.1** (Lilu plugin
+  that restores the Apple HDA stack by injection, no root patches), with `alcid=13` — the ALC245
+  layout AppleALC ships for HP Omen 2020. Alternatives if 13 stays silent: `alcid=11`
+  (ALC235/Lenovo) or `alcid=12` (ALC245/Lenovo). Needs
+  `Kernel > Quirks > DisableLinkeditJettison=true` (already set).
+- **Unverified:** brightness keys, sleep/wake (WEX calls sleep experimental), long-run
   stability under load (WEX #42/#50 on `46A6`), and external outputs from the iGPU (HDMI is wired
   to the NVIDIA dGPU on this laptop).
 
