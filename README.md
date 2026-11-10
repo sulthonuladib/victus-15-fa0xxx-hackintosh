@@ -221,6 +221,14 @@ bash /Volumes/macUtility/whateverxe/bench/bench-cpu.sh      # same CPU bench as 
   `[mesh] … unsupported serialized request`. That log is the map for the next step: satisfy
   `-architecture` for binary archives, and decide whether `libigc-tgl` can compile a mesh stage at
   all before writing any emulation.
+- **Binary archives: the gate is framework-side (measured).** The device *does* answer
+  `-architecture` and returns an `MTLArchitecture` object, but its `name` is `Unknown` and
+  `cpuType`/`cpuSubtype`/`revision` are scalar returns we could not resolve through
+  `performSelector:`. Swizzling `-[MTLArchitecture name]` to `applegpu_g13/g11/g12`, `IntelGen12LP`,
+  `gen12lp`, `AppleIntelTGL`, `XeLP` (`tools/metal3/archtest.m`) changes nothing: Metal.framework
+  still refuses with "This legacy driver has no target architecture for binary archives". So the
+  decision is in Metal.framework (dyld shared cache) and/or in a compiler target the 16.0.32 plugin
+  never had — this needs shared-cache RE, not a device-side stub.
 - **Display off/on** is unproven. With the pre-fix kext a display-off ended in thousands of
   `WindowServer … Fallback GPU Display Pipe transaction submission failed` lines and a dead panel, so
   `pmset displaysleep 0` is set until wake is tested on the current kext.
