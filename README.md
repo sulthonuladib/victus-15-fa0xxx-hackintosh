@@ -92,6 +92,34 @@ so the base is 0.7.0 plus the nickk19 `display13-edp-keep` handoff work, and on 
 Building WEX: there is no full Xcode on this machine, so builds go through the fork's
 `.github/workflows/ci.yml` (`macos-15-intel`, RELEASE artifact) — see "Reproducing the install".
 
+### Where the kext source lives (the fork branch stack)
+
+This repo carries the **built** kext (`EFI/OC/Kexts/WhateverXe.kext`) plus the EFI, config, docs and
+tooling. The code that produces it lives in the fork
+[`sulthonuladib/WhateverXe`](https://github.com/sulthonuladib/WhateverXe), one branch per feature, and
+each branch is built by that fork's own `.github/workflows/ci.yml` (`macos-15-intel`, RELEASE artifact,
+no release is created). Every branch keeps its parent's work, so the newest one contains all of it.
+
+| fork branch | latest commit | adds | CI run | kext binary |
+|---|---|---|---|---|
+| `adlp-panel-route` | `5d530a5` | eDP boot handoff, VBT `0xFF` panel type, `-wex-edp-keep`, `-wex-panel-fallback` (lowest internal DDI), `-wex-no-tc`, the #35 blockers + TC-gate | 42746818853 | `420fcb5a` |
+| `wm-cdclk-half` | `c31a748` | `clockFits()` against 2xCDCLK instead of CDCLK, plus its unit test — ends the watermark fault latch and the underruns | 42809313867 | `4cd2f40e` |
+| `xepm` | `32f7144` | XE-PM hybrid HWP rescale (opt-in `-wexpm`, `wexpmcst=0`, sysctls `debug.wexpm.*`) — the +33 % CPU | 42846969646 | `d16ad4f9` |
+| `adlp-wa` | `caf0e09` | ADL-P Display 13 workarounds (opt-in `-wex-adlp-wa`), registered in the boot-argument test fixture | 42853206917 | **`a5897761`** ← deployed |
+
+Rules that keep this honest:
+
+- the deployed binary is always the newest branch's build; this repo's README records its hash, and
+  `tools/deploy-efi.sh --check` proves the ESP matches the repo;
+- every feature is **boot-arg gated**, so a build can carry code the current config does not enable
+  (`adlp-wa`'s V212 is in `a5897761` but off, `xepm`'s idle-table write is off via `wexpmcst=0`);
+- rebuild with `gh workflow run ci.yml --ref <branch> -R sulthonuladib/WhateverXe`, download the
+  `Artifacts` artifact, replace `EFI/OC/Kexts/WhateverXe.kext`, commit, deploy — and put the binary
+  hash in the commit message, as every kext commit here does;
+- the fork's tests run in the same CI: a new boot-arg must be registered in
+  `tests/fixtures/boot_argument_names.json` or `boot_arguments` fails, which is what caught
+  `-wex-adlp-wa`.
+
 ### ACPI tables we add
 
 `SSDT-ALS0`, `SSDT-SBUS`, `SSDT-EC`, `SSDT-GPI0`, `SSDT-MCHC`, `SSDT-PLUG-ALT` (`plugin-type`
